@@ -1,0 +1,17 @@
+{
+  "name": "@local/ai-director-discipline",
+  "version": "0.1.0",
+  "description": "AI Director workflow discipline plugin: pre-answer verification (red line 7) + SSOT protection (red line 8)",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./index.ts"],
+    "compat": {
+      "pluginApi": ">=2026.6.11",
+      "minGatewayVersion": "2026.6.11"
+    },
+    "build": {
+      "openclawVersion": "2026.6.11",
+      "bundledDist": false
+    }
+  }
+}

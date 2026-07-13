@@ -1,0 +1,188 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 模型技术约束（AI导演 — 共享知识库）
+# 生成资产前必查！避免产出无法被目标模型使用的资产
+# 最后更新：2026-07-06 — 基于官方文档重写
+
+Seedance 2.0:
+  模型ID: doubao-seedance-2-0-260128
+  端点ID: ep-20260705101905-6sz4b  # ARK端点，调用时用此ID替代模型ID
+  API端点: "POST /api/v3/contents/generations/tasks"  # 任务式异步
+  查询端点: "GET /api/v3/contents/generations/tasks/{task_id}"
+  时长: [4, 15] 或 -1(自动)
+  分辨率: [480p, 720p, 1080p, 4k]  # 4k仅2.0支持，10bit H.265编码
+  比例: [16:9, 4:3, 1:1, 3:4, 9:16, 21:9, adaptive]
+  随机种子: [-1, 2^32-1]，默认 -1（随机）
+  水印: 默认 true（需显式设 false）
+  尾帧返回: return_last_frame: true 获取最后一帧
+  任务超时: execution_expires_after 默认172800(48h)，范围[3600, 259200]
+  回调: callback_url 可选，状态变化时POST通知
+  优先级: priority 0~9，仅影响排队顺序
+  联网搜索: tools.web_search，模型自主判断
+  最低token用量: 2.0系列存在最低值，按最低值计费
+
+  # ========== content 数组（核心） ==========
+  content说明:
+    数组内可同时包含 text / image_url / video_url / audio_url
+    每种类型的项数约束见下方
+    建议中文提示词 ≤ 500 字、英文 ≤ 1000 词
+
+  # ---------- text ----------
+  text参数:
+    type: text
+    text: "提示词内容"
+    说明: 中英日印尼西葡语均支持
+
+  # ---------- image_url ----------
+  image_url参数:
+    type: image_url
+    image_url:
+      url: "公网URL或Base64"
+    role: "条件必填，三选一互斥"
+    
+  图片role说明:
+    first_frame:
+      用途: 图生视频-首帧
+      张数: 1张
+      说明: 不填role时默认为首帧模式
+    first_frame+last_frame:
+      用途: 图生视频-首尾帧
+      张数: 2张（分别标注 role: first_frame 和 role: last_frame）
+    reference_image:
+      用途: 参考图（风格/构图/色调/角色外观参考）
+      张数: 1～9张（每张必填 role: reference_image）
+      说明: |
+        ⭐ CGI写实角色卡九维图、场景氛围图、道具卡六维图
+        均可以 role: reference_image 传入
+        帮助Seedance锚定人物外观、场景色调、道具质感
+        
+  角色卡使用规则:
+    - CGI/手绘/3D渲染的角色图 → ✅ 可作为 reference_image
+    - 真人照片/含真实人脸 → ❌ 禁止上传
+    - 虚拟人像（平台预置） → ✅ 可使用
+    - 自身产出的含人脸素材 → ✅ 可作为首帧/尾帧引用
+
+  # ---------- video_url ----------
+  video_url参数:
+    type: video_url
+    video_url:
+      url: "视频URL 或 asset://<ASSET_ID>"  # ⚠️ 不支持Base64！仅URL/asset
+    role: reference_video
+  视频约束:
+    格式: mp4/mov
+    分辨率: 480p/720p/1080p/4k
+    时长: 单段[2,15]s，最多3段，总≤15s
+    宽高比: [0.4, 2.5]，宽或高[300, 6000]
+    像素: [409600, 8295044]
+    大小: 单视频 ≤ 200MB
+    帧率: [24, 60] FPS
+    用途: |
+      段间衔接：段1生成后的视频
+      → 作为段2的 reference_video（人物一致性）
+      ⚠️ 视频不支持Base64编码传入
+
+  # ---------- audio_url ----------
+  audio_url参数:
+    type: audio_url
+    audio_url:
+      url: "音频URL、Base64 或 asset://<ASSET_ID>"
+    role: reference_audio
+  音频约束:
+    格式: wav/mp3
+    时长: 单段[2,15]s，最多3段，总≤15s
+    大小: 单音频 ≤ 15MB
+    请求体: ≤ 64MB
+    限制: 音频不可单独输入，至少配合1个参考视频或图片
+    用途: |
+      氛围音频参考（音乐风格/环境音调性）
+      ⚠️ 不是台词对白！reference_audio 仅供风格参考
+
+  # ---------- generate_audio ----------
+  原生音频:
+    参数: generate_audio: true（默认值 true）
+    官方说明: |
+      模型会基于文本提示词与视觉内容，自动生成与之匹配的
+      人声、音效及背景音乐。建议将对话部分置于双引号内，
+      以优化音频生成效果。
+      例如：男人叫住女人说："你记住，以后不可以用手指指月亮。"
+    产出声: 人声（台词对白）+ 音效（SFX）+ 背景音乐（BGM）+ 口型同步
+    限制: |
+      - 单角色短句最稳定（≤2句/镜）
+      - 多人场景人声可能混乱（官方承认开放问题）
+      - 中英文最稳定（中文≈英文，日语/印尼语/西语/葡语次之）
+      - 中近景固定镜头效果最佳
+    提示词写法: |
+      Prompt 中直接把台词放在双引号里：
+      林晚抬起头，眼眶微红，轻声说："你回来了。"
+      程屿顿了一下，低声问："怎么不告诉我？"
+
+  # ---------- content 组合示例 ----------
+  完整请求示例:
+    model: ep-20260705101905-6sz4b
+    content:
+      - type: text
+        text: "运镜描述 + 灯光参数 + 角色外貌描述 + 统一母提示词 + 引号台词"
+      - type: image_url
+        image_url: {url: "角色卡九维CGI图URL"}
+        role: reference_image
+      - type: image_url
+        image_url: {url: "场景氛围图URL"}
+        role: reference_image
+      - type: image_url
+        image_url: {url: "道具卡六维图URL"}
+        role: reference_image
+      - type: audio_url
+        audio_url: {url: "氛围参考音频URL"}
+        role: reference_audio
+    generate_audio: true
+    return_last_frame: true  # 如后续段需要
+    duration: 15
+    resolution: 720p
+    ratio: 16:9
+
+  请求体限制: ≤ 64MB（含所有图片/音频/视频）
+
+通义万相 2.0:
+  模型: wanx2.0-t2i-turbo
+  模式: 文生图（不支持图生图）
+  分辨率: "1024*1024"
+  限制:
+    - 不支持真人面部参考图作为生图输入
+    - CGI/手绘/3D渲染面部 → ✅ 不受限
+  用途: 场景参考图、产品图、风格参考板
+
+豆包语音 TTS:
+  角色: 兜底方案（非主方案）
+  端点: wss://openspeech.bytedance.com/api/v3/tts/bidirection
+  音色: [zh_female_vv(林晚), zh_male_ruyayichen(程屿), zh_female_meilinvyou, zh_male_m191]
+  输出: MP3, 24kHz, 64kbps, 单声道
+  用途: |
+    Seedance 原生人声不稳定时兜底
+    （如多人场景声音混乱、音频失真时）
+
+## 管线技术合规检查（更新）
+
+Agent B 产出分镜表后检查：
+1. 角色卡风格是否为 CGI/手绘/3D？
+   - 是 → reference_image 模式可用，角色卡图直接喂 Seedance ✅
+   - 不是（真人照片）→ 仅纯文本 mode，角色卡仅用于文字描述 ⚠️
+2. 每段打包的 content 是否 ≤ 9 张 reference_image？
+3. 是否有需要段间衔接的连续镜头？
+   - 有 → 设置 return_last_frame: true 并使用尾帧
+4. 对白是否已标记为独立 TTS 管线？
+
+## 段打包规则
+
+镜头组织: 按 ≤ 15 秒打包成段（非逐镜调用）
+段内: text + image_url(角色卡+场景+道具 1~9张) + audio_url(可选)
+段间: 多模态参考模式 + reference_video（上一段视频）
+  ⚠️ 不可混用 first_frame + reference_image（首帧/多模态参考互斥）
+  尾帧图作为额外 reference_image 传入，非 first_frame role
+  ⚠️ 编辑/延长模式提示词不用"参考"前缀
+对白: generate_audio=true 原生生成，TTS 兜底
+
+## 图片裁剪规则（API自动处理）
+
+当 ratio 参数与上传图片实际宽高比不一致时，API自动居中裁剪：
+- 图片"太高" → 以宽度为基准，上下裁剪
+- 图片"太宽" → 以高度为基准，左右裁剪
+- 建议: 参考图宽高比尽量接近目标ratio，避免关键内容被切

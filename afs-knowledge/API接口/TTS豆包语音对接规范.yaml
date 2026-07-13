@@ -1,0 +1,90 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 豆包语音 SeedTTS 2.0 对接规范 — AI导演
+# 纳入日期：2026-07-09
+# 用途：Agent E 后期合成 + 兜底配音 + 高品质角色定制音色
+
+# 概况
+overview:
+  平台: "火山引擎 豆包语音 / SeedTTS 2.0"
+  资源 ID: "seed-tts-2.0"
+  用途: "角色对白配音 + 旁白 VO + Seedance generate_audio 兜底"
+  定位: "Agent E 主力音频模型"
+  cost: "后付费 ¥5/万字符，资源包 ¥2.8/万字符"
+
+# API 端点
+api:
+  url: "wss://openspeech.bytedance.com/api/v3/tts/bidirection"
+  protocol: "WebSocket 双向二进制（protocols.py）"
+  auth: "X-Api-Key: ${DOUBAO_API_KEY}（独立于火山账号 AK/SK）"
+
+# 调用流程
+flow:
+  - step: 1
+    action: "StartConnection（建立连接）"
+  - step: 2
+    action: "StartSession（建会话）"
+    payload:
+      req_params:
+        speaker: "{音色 ID}"
+        audio_params:
+          format: "mp3"
+          sample_rate: 24000
+          channels: 1
+  - step: 3
+    action: "TaskRequest（按字符流发送文本，每字符 sleep 5ms）"
+  - step: 4
+    action: "接收 AudioOnlyServer 帧，拼接音频字节"
+  - step: 5
+    action: "FinishSession + FinishConnection"
+
+# 已确认可用音色
+voices:
+  - id: "zh_female_vv_uranus_bigtts"
+    name: "林晚"
+    gender: "female"
+    use_case: "年轻女声"
+  - id: "zh_male_ruyayichen_saturn_bigtts"
+    name: "程屿"
+    gender: "male"
+    use_case: "儒雅男声"
+  - id: "zh_female_meilinvyou_saturn_bigtts"
+    name: "魅力女友"
+    gender: "female"
+    use_case: "成熟女声"
+  - id: "zh_male_m191_uranus_bigtts"
+    name: "云舟"
+    gender: "male"
+    use_case: "浑厚男声"
+  - id: "zh_male_qingrun"
+    name: "清润"
+    gender: "male"
+    use_case: "通用男声"
+
+# 凭证
+credentials:
+  path: "~/.openclaw/credentials/doubao_tts.json"
+  loader: "scripts/_credentials.py load_doubao_tts_api_key()"
+  security_note: "07/09 之前 6 个脚本硬编码此 Key，已全部移到 credentials/"
+
+# Agent E 集成
+agent_e_integration:
+  primary_use: "高质量角色对白（每角色独立音色，避免单一声线疲劳）"
+  fallback_use: "Seedance generate_audio 人声不合格时启用"
+  scripts:
+    - "scripts/tts/tts_client_v3.py — 当前推荐（bidirection 协议）"
+    - "scripts/tts/tts_client.py / v2.py — 旧版（计划合并去重）"
+    - "scripts/tts/tts_batch_cafe.py — 批量模板（用于项目初期批量合成）"
+
+# 与 Seedance generate_audio 关系
+vs_seedance_generate_audio:
+  strategy: "Seedance generate_audio 为主（双引号触发对白），豆包 TTS 兜底"
+  when_tts: "角色定制音色 / Seedance 人声不达标 / 需要更高品质"
+  when_seedance: "默认场景（Seedance 原生人声已够用，节省 TTS 调用成本）"
+
+# 成本追踪
+cost_tracking:
+  unit: "万字符"
+  unit_price_postpay: "¥5"
+  unit_price_package: "¥2.8"
+  log_path: "memory/api-costs.md"
+  per_project_estimation: "10 分钟短剧 ≈ 100-300 字对白 = ¥0.05-0.15"

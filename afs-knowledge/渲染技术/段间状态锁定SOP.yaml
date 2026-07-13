@@ -1,0 +1,283 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 段间状态锁定 SOP — AI导演（Agent C 渲染引擎）
+# 版本: 1.0 | 创建: 2026-07-09 | Phase 7 反例驱动
+# 用途: 多段项目每段渲染前状态锁定 + 下段状态继承
+# 红线: 段间状态漂移（外套穿回去/绷带漂移/伤疤消失）= 不通过
+
+segment_state_lock:
+  description: >
+    多段项目中，每段独立渲染时角色服装/伤/位置/姿势/道具状态必须在段间连贯。
+    Phase 7 打斗短剧「断刃」5 段渲染发现段 1 陈影脱外套露左臂绷带，
+    段 2-5 外套又穿回去、绷带左右臂漂移、照片突然出现/消失。
+    根因：C 没做段间 reference_video 状态锁定，每段独立生成不继承上段状态。
+  version: "1.0"
+  created: "2026-07-09"
+  applicable_to:
+    - "Agent C 渲染引擎多段项目（>=2 段）"
+    - "含角色服装变化/伤口变化/道具变化的多段场景"
+    - "段间角色位置/朝向变化需要连贯的场景"
+  triggers:
+    - "多段项目（段数 >= 2）"
+    - "段打包清单含 is_extend=True 的段"
+    - "角色卡含服化层级变化"
+
+  # ===== 状态字典 Schema =====
+  state_schema:
+    description: "每段渲染后写 .chain/seg_xx_state.json，下段渲染前加载"
+    format: "JSON"
+    path: ".chain/seg_{seg_id}_state.json"  # 相对于 clips/
+    fields:
+      # ── 不变字段（每段必须保持，角色一致性锁定）──
+      frozen_fields:
+        description: "渲染全程不可变，每段 prompt 必须包含这些角色定义"
+        items:
+          - field: "角色名"
+            type: "string"
+            example: "陈影"
+          - field: "人种"
+            type: "string"
+            example: "东亚"
+          - field: "脸型"
+            type: "string"
+            example: "方形脸、下颌线分明"
+          - field: "发型"
+            type: "string"
+            example: "短发、两鬓微白"
+          - field: "发色"
+            type: "string"
+            example: "黑/灰白"
+          - field: "服装款式"
+            type: "string"
+            example: "黑色战术外套 + 深灰紧身内衬 + 工装裤 + 军靴"
+          - field: "角色特征"
+            type: "array"
+            items: "string"
+            example: ["右眉尾刀疤", "左臂旧伤绷带", "骨节粗大", "体脂低肌肉线条"]
+          - field: "视觉风格"
+            type: "string"
+            example: "现代写实CGI / photorealistic / PBR材质 / 电影级叙事光影"
+      # ── 变字段（按剧本时间线变化）──
+      variant_fields:
+        description: "段间可能变化，下段 prompt 必须继承上段末尾状态"
+        items:
+          - field: "服装状态"
+            type: "string"
+            examples:
+              - "外套已脱，左臂绷带完全露出"
+              - "外套穿着，拉链未拉全"
+              - "衬衫从裤腰扯出大半"
+          - field: "伤/伤口"
+            type: "string"
+            examples:
+              - "左臂绷带渗血"
+              - "鼻尖微红（刚被刀锋掠过）"
+              - "掌心磨破渗血"
+              - "虎口有旧茧"
+          - field: "姿势"
+            type: "string"
+            examples:
+              - "站立，重心偏低"
+              - "后仰躲避"
+              - "角力僵持"
+              - "单膝跪地"
+          - field: "位置/朝向"
+            type: "string"
+            examples:
+              - "距秦刃十米，面对秦刃"
+              - "距秦刃1米，偏左"
+              - "靠墙，面朝门口"
+          - field: "武器持有"
+            type: "string"
+            examples:
+              - "右手持有战术刀"
+              - "刀已被握在对方手中"
+              - "刀已滑落在地"
+              - "无武器"
+          - field: "道具持有"
+            type: "string"
+            examples:
+              - "右手抽出一张泛黄旧照片举在胸前"
+              - "照片已滑落在地"
+              - "双手空空"
+          - field: "灯光状态"
+            type: "string"
+            examples:
+              - "夕阳暖橙侧逆光"
+              - "夕阳即将沉入地平线，光束越来越窄"
+              - "冷调黄昏"
+          - field: "面部表情"
+            type: "string"
+            examples:
+              - "眼神沉静，呼吸平稳"
+              - "眉头紧锁，额角渗汗"
+              - "嘴角露出苦笑"
+              - "眼神从震惊转为释然"
+
+  # ===== Python API（必走脚本）=====
+  python_api:
+    description: "这些函数必须集成到 render_v3.py 中，每段渲染前/后调用"
+    functions:
+      - name: "save_seg_state"
+        signature: "def save_seg_state(seg_id: str, state_dict: dict, state_dir: Path) -> None"
+        description: "渲染成功后，将当前段结束时的状态写入 sidecar"
+        location: ".chain/seg_{seg_id}_state.json"
+        called_after: "渲染成功（process_success 末尾）"
+        call_frequency: "每段一次"
+        example_call: |
+          state = {
+              "seg_id": "02",
+              "characters": {
+                  "陈影": {
+                      "frozen": {"脸型": "方形脸", "发型": "短发两鬓微白", "发色": "黑/灰白", "服装款式": "黑色战术外套+深灰内衬+工装裤"},
+                      "variant": {"服装状态": "外套已脱，左臂绷带完全露出", "姿势": "角力僵持", "位置": "距秦刃1米偏左", "道具": "秦刃持刀手腕被抓住"}
+                  },
+                  "秦刃": {
+                      "frozen": {"脸型": "瘦削分明", "发型": "短发", "发色": "黑", "服装款式": "军绿短外套+黑战术背心+工装裤"},
+                      "variant": {"服装状态": "短外套拉链崩开", "姿势": "角力僵持,左手握拳", "位置": "距陈影1米偏右", "武器": "右手握刀被抓住"}
+                  }
+              },
+              "scene": {
+                  "位置": "废弃工厂中央",
+                  "灯光": "夕阳暖橙侧逆光",
+                  "氛围": "紧张对峙"
+              },
+              "道具": ["战术刀（秦刃手中被抓住）"]
+          }
+          save_seg_state("02", state, CHAIN_META_DIR)
+
+      - name: "load_seg_state"
+        signature: "def load_seg_state(seg_id: str, state_dir: Path) -> Optional[dict]"
+        description: "渲染当前段前，加载上一个段的状态字典"
+        called_before: "build_content() / build_content_with_state()"
+        returns: "上一个段的状态 dict，或 None（首段无上段状态）"
+        example_call: |
+          prev_state = load_seg_state("01", CHAIN_META_DIR)
+          # prev_state = { "characters": {...}, "scene": {...}, "道具": [...] }
+          # 如果 seg_01_state.json 不存在 → prev_state = None
+
+      - name: "build_content_with_state"
+        signature: "def build_content_with_state(seg_id: str, prev_state: Optional[dict], ref_b64_map: dict, prev_video_url: str, prev_last_frame_b64: str) -> list"
+        description: "在 build_content() 基础上，强制把上段状态延续段插入 prompt 头部"
+        behavior: |
+          1. 调用原有的 build_content() 构建 content 列表
+          2. 如果 prev_state 存在，在 prompt（content[0].text）头部追加"上段状态延续"段
+          3. "上段状态延续"段格式见 prompt_template.state_continuation
+        example_call: |
+          content = build_content_with_state("02", prev_state, ref_b64_map, prev_video_url, prev_last_frame_b64)
+
+      - name: "build_state_from_script"
+        signature: "def build_state_from_script(seg_id: str, seg_prompt: str, seg_def: dict) -> dict"
+        description: "从当前段的 prompt 文本和段定义提取状态变化，构建新的 state_dict"
+        called_after: "渲染成功、写入 save_seg_state 之前"
+        behavior: |
+          从 seg_prompt 分析角色动作 → 推断服装/伤/位置变化
+          合并 prev_state 的 frozen_fields
+          返回完整的 state_dict
+        note: "当前为半自动：AI 解析 prompt 推断，未来可接入 LLM 全自动"
+
+  # ===== Prompt 模板 =====
+  prompt_template:
+    state_continuation:
+      description: "每段 prompt 头部必含的'上段状态延续'段"
+      format: >
+        ⚠️ 段间状态锁定：本段必须延续上段 N 结束时的状态。
+        上段结尾状态：
+        [角色1·陈影]
+        - 服装：{服装状态}
+        - 伤/伤口：{伤描述}
+        - 姿势：{姿势}
+        - 位置：{位置/朝向}
+        - 道具：{道具持有}
+        [角色2·秦刃]
+        - 服装：{服装状态}
+        - 武器：{武器持有}
+        - 姿势：{姿势}
+        - 位置：{位置/朝向}
+        - 表情：{面部表情}
+        [场景]
+        - 灯光：{灯光状态}
+        - 氛围：{氛围}
+        ⚠️ 本段结束时，上述状态应按剧本推进更新。
+      example: |
+        ⚠️ 段间状态锁定：本段必须延续段 1 结束时的状态。
+        上段结尾状态：
+        [陈影]
+        - 服装：外套已脱，左臂绷带完全露出
+        - 伤/伤口：绷带边缘渗血
+        - 姿势：站立，重心偏低
+        - 位置：距秦刃十米，面对秦刃
+        - 道具：右手刚脱下外套
+        - 表情：眼神沉静，呼吸平稳
+        [秦刃]
+        - 服装：军绿色短外套穿着，拉链未拉全
+        - 武器：右手持有战术刀
+        - 姿势：站立在碎石堆上
+        - 位置：距陈影十米，面对陈影
+        - 表情：嘴角上扬，眼神轻蔑
+        [场景]
+        - 灯光：夕阳暖橙侧逆光从破窗射入
+        - 氛围：压抑 → 对峙
+        ⚠️ 本段结束时，上述状态应按剧本推进更新。
+        ---
+        以下为当前段剧本内容：
+
+  # ===== 状态冲突检测 =====
+  conflict_detection:
+    description: "在 build_content_with_state() 中自动检测状态冲突"
+    rules:
+      - rule: "服装冲突"
+        detect: "prev_state 说'外套已脱'但当前段描述说'穿着外套'"
+        action: "抛 RuntimeError: 服装状态冲突 - 上段结束时外套已脱，本段不能穿回去"
+      - rule: "武器冲突"
+        detect: "prev_state 说'刀已滑落'但当前段描述持刀攻击"
+        action: "抛 RuntimeError: 武器状态冲突 - 上段结束时刀已滑落"
+      - rule: "位置冲突"
+        detect: "prev_state 说'距对手1米'但当前段描述'隔十米远'"
+        action: "抛 RuntimeError: 位置状态冲突 - 距离异常跳跃"
+      - rule: "道具冲突"
+        detect: "prev_state 无'照片'道具但当前段描述抽照片"
+        action: "抛 RuntimeError: 道具状态冲突 - 照片凭空出现"
+      - rule: "伤冲突（反向）"
+        detect: "prev_state 有旧伤但当前段无该伤（非剧情愈合）"
+        action: "抛 RuntimeError: 伤/伤口状态冲突 - 伤口无故消失"
+      - rule: "frozen 字段漂移"
+        detect: "本段角色定义与 prev_state.frozen 不一致"
+        action: "抛 RuntimeError: 角色特征锁定冲突 - 不变字段被修改"
+    conflict_free_allowed:
+      description: "以下变化允许（不触发冲突检测）"
+      items:
+        - "服装状态按剧本推进变化（如外套在段 3 穿回但剧本明确描写）"
+        - "武器从 A 手到 B 手（有明确动作描写）"
+        - "位置分镜头间变化（有运镜描述支撑）"
+        - "伤口恶化（剧本明确写被击中）"
+
+  # ===== 状态字段 Mermaid 流程图 =====
+  flow_diagram: |
+    flowchart TD
+      A[开始渲染 SEG-N] --> B{seg_id == \"01\"?}
+      B -->|是| C[定义 initial_state<br>从剧本段1描述]
+      B -->|否| D[load_seg_state(prev_seg_id)<br>从 .chain/ 加载上段状态]
+      D --> E{build_content_with_state<br>有 prev_state?}
+      E -->|有| F[注入"上段状态延续"段<br>到 prompt 头部]
+      E -->|无（首段）| G[正常构建 prompt]
+      F --> H[submit_and_wait API]
+      G --> H
+      C --> H
+      H --> I{渲染成功?}
+      I -->|是| J[save_seg_state<br>写 .chain/seg_N_state.json]
+      I -->|否| K[降级 / 失败处理]
+      J --> L{is_extend?}
+      L -->|是| M[进入 SEG-N+1 循环]
+      L -->|否（终段）| Z[结束]
+
+  # ===== 实施检查清单 =====
+  implementation_checklist:
+    - "[ ] save_seg_state() 函数已实现在 render_v3.py 中"
+    - "[ ] load_seg_state() 函数已实现在 render_v3.py 中"
+    - "[ ] build_content_with_state() 已替代 build_content()"
+    - "[ ] 冲突检测 build_content_with_state() 中已集成"
+    - "[ ] 每段渲染成功后调用 save_seg_state()"
+    - "[ ] 终段不保存 state（无下段继承）"
+    - "[ ] 首段 initial_state 从剧本段 1 描述手工构建"
+    - "[ ] 单测 test_seg_state_lock.py 已通过"
+    - "[ ] SKILL.md 段间状态锁定 SOP 章节已更新"

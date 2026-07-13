@@ -1,0 +1,112 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 互动设计模式库 v1.0
+# Agent A 剧本阶段 + Agent E（未来）
+# 基于 IF Craft Corpus 设计模式 + 锦灰局实战验证
+
+interactive_patterns:
+  version: "1.0"
+  description: "短剧互动设计。首个版本仅支持 Bottleneck 模式。"
+
+  # ===== 核心原则 =====
+  core_principles:
+    - "主线不变，分支仅调局部变量"
+    - "选择≠改变结局，选择=改变关系/证据/语气"
+    - "隐藏判断不弹窗，通过后果镜头体现"
+    - "每个互动点提供A/B两个选项，无'正确'答案"
+
+  # ===== Bottleneck 模式 =====
+  bottleneck:
+    id: "pattern_01"
+    name: "Bottleneck（瓶口模式）"
+    description: "所有选择最终汇入同一主线。分支仅调整角色关系强度、证据链强弱、下集开场语气三个变量。"
+    reference: "锦灰局 EP01"
+    
+    structure:
+      explicit_choices:
+        description: "弹窗选择，观众主动操作"
+        count: 3
+        placement_rules:
+          - "激励事件后（25-30s）：第一个选择，建立参与感"
+          - "中点附近（70-80s）：第二个选择，决策升压"
+          - "高潮前（110-120s）：第三个选择，终极抉择"
+        examples:
+          - id: "①"
+            beat_ref: 4  # 激励事件
+            prompt: "火场先救什么"
+            options:
+              A: "抢残纸"    # → 证据链+1 关系-1（冒死）
+              B: "先救人"     # → 关系+1 证据链-1（善良）
+            affected_vars: ["evidence_strength", "relationship_score"]
+          - id: "③"
+            beat_ref: 9  # 中点
+            prompt: "公验亮不亮证"
+            options:
+              A: "当场亮证"   # → 对抗升级 关系-1
+              B: "暂缓亮证"   # → 缓和 但证据风险
+            affected_vars: ["tension_level", "evidence_risk"]
+          - id: "⑤"
+            beat_ref: 13  # 进入第三幕
+            prompt: "先救人还是先抢证"
+            options:
+              A: "先救人"     # → 情感分+2 证据链-1
+              B: "先抢证"     # → 证据链+2 情感分-1
+            affected_vars: ["relationship_score", "evidence_strength"]
+    
+      hidden_judgments:
+        description: "不弹窗，通过后续镜头自动体现选择后果"
+        count: 3
+        trigger_rules:
+          - "基于explicit_choices的组合自动判定"
+          - "不打断观众体验"
+          - "后果在1-2个镜头后悄然呈现"
+        examples:
+          - id: "②"
+            name: "街巷反应"
+            trigger: "基于①选择"
+            A_consequence: "残纸在手→后续镜头增加路人议论细节"
+            B_consequence: "救人优先→后续镜头增加角色受伤细节"
+          - id: "④"
+            name: "密室第一反应"
+            trigger: "基于③选择"
+            A_consequence: "提前亮证→后续密室场景增加反派人手"
+            B_consequence: "暂缓亮证→密室独处戏增加内心活动镜头"
+          - id: "⑥"
+            name: "结尾藏不藏线索"
+            trigger: "基于⑤选择"
+            A_consequence: "先救人→终局画面后追加一个'线索被忽略'的空镜"
+            B_consequence: "先抢证→终局画面后追加一个'线索被藏起'的微动作"
+
+  # ===== 未来模式（文档预留，不实现）=====
+  future_patterns:
+    state_based:
+      id: "pattern_02"
+      name: "State-Based（状态机模式）"
+      description: "角色间存在好感度/信任度/信息量等状态变量，对话选项同时改变多个状态。适合长篇连续剧。"
+      status: "v3待研究"
+    
+    parallel_tracks:
+      id: "pattern_03"
+      name: "Parallel Tracks（并行轨道模式）"
+      description: "多角色视角交替，观众在不同角色的互动轨道间切换。适合群像剧。"
+      status: "v3待研究"
+    
+    hybrid:
+      id: "pattern_04"
+      name: "Hybrid（混合模式）"
+      description: "Bottleneck主框架 + State-Based副作用 + Parallel视点切换"
+      status: "未来储备"
+
+  # ===== 集成到Agent A =====
+  integration:
+    script_annotation:
+      - "分镜脚本中互动点用 ◇ 标记"
+      - "选择选项在台词后 [若选A→X / 若选B→Y] 标注"
+      - "隐藏判断在后果镜头标注 [隐藏②:街巷反应触发]"
+    
+    beat_sheet_alignment:
+      - "显性选择插入到特定节拍节点（4/9/13）"
+      - "隐藏判断不占节拍，作为子节点挂载"
+    
+    json_output:
+      - "工程化剧本.json 的 interactive_points 字段记录所有互动点"
+      - "每个互动点含 id/beat_ref/type/prompt/options/affected_vars"

@@ -1,0 +1,189 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 灯光方案模板 v1.0
+# Agent B 分镜阶段使用
+# 对标锦灰局灯光体系 + 行业五层模型
+
+lighting_presets:
+  # ===== 场景级灯光预设 =====
+  # 镜头默认继承场景设置，特殊镜头可手写覆盖
+  
+  presets:
+    冷青铜据光:
+      id: "L01"
+      style: "冷青铜据光"
+      scene_types: ["审讯室", "刑房", "公堂"]
+      key_light:
+        type: "点光源"
+        color_temp: 5400  # K
+        direction: "左前45°"
+        height: "45°俯角"
+        intensity: 80  # 百分比
+      rim_light:
+        type: "逆光"
+        color_temp: 2600  # K（铜色暖光）
+        direction: "右后侧"
+        intensity: 40
+      fill_light:
+        type: "漫反射"
+        direction: "正面下方"
+        intensity: 30
+      atmosphere:
+        - "冷青铜色调主导"
+        - "暖铜逆光勾勒轮廓"
+        - "人物面部半暗半明"
+        - "冷暖对撞增强戏剧张力"
+      reference: "錦灰局 場1·审计司刑房"
+
+    火场暗金:
+      id: "L02"
+      style: "火场暗金"
+      scene_types: ["火灾现场", "废墟", "夜战"]
+      key_light:
+        type: "大面积暖光"
+        color_temp: 2600  # K
+        direction: "场景内火源方向"
+        intensity: 90
+        animated: true  # 火光明暗波动
+      rim_light:
+        type: "逆光"
+        color_temp: 5400  # K（冷月色）
+        direction: "上方·模拟月光"
+        intensity: 20
+      fill_light:
+        type: "地面反射"
+        direction: "下方"
+        intensity: 15
+      atmosphere:
+        - "火光源主导，明暗剧烈波动"
+        - "冷月色从上方微照，制造层次感"
+        - "烟雾散射光（体积雾）"
+        - "人物剪影+面部暖光交替"
+      reference: "錦灰局 場2·西坊火场"
+
+    雨夜冷调:
+      id: "L03"
+      style: "雨夜冷调"
+      scene_types: ["雨夜外景", "逃亡场景", "门前对峙"]
+      key_light:
+        type: "柔光"
+        color_temp: 5600  # K（冷蓝）
+        direction: "上左45°"
+        intensity: 60
+      rim_light:
+        type: "逆光"
+        color_temp: 3200  # K（微暖）
+        direction: "后侧低角度"
+        intensity: 30
+      fill_light:
+        type: "水面反射"
+        direction: "地面（雨地镜面）"
+        intensity: 20
+      atmosphere:
+        - "冷蓝灰主调"
+        - "雨丝在逆光中可见"
+        - "人物面部湿润反光"
+        - "水洼倒映灯光"
+      reference: "錦灰局 場6·雨夜门前"
+
+    烛光密室:
+      id: "L04"
+      style: "烛光密室"
+      scene_types: ["室内密室", "夜审", "私密对话"]
+      key_light:
+        type: "蜡烛暖光"
+        color_temp: 2000  # K
+        direction: "桌面高度·场景内"
+        intensity: 50
+        falloff: "快速衰减（平方反比）"
+      rim_light:
+        type: "无"
+        color_temp: null
+        intensity: 0
+      fill_light:
+        type: "墙面反射"
+        direction: "人物背面墙"
+        intensity: 10
+      atmosphere:
+        - "单光源主导，大量暗部"
+        - "烛光摇曳动态（微动）"
+        - "人物面部暖色调"
+        - "背景黑暗但可见轮廓"
+      reference: "錦灰局 場5·后院密室"
+
+    公验棚自然光:
+      id: "L05"
+      style: "公验棚自然光"
+      scene_types: ["公验", "白天室内", "半开放空间"]
+      key_light:
+        type: "天光"
+        color_temp: 6500  # K（日光）
+        direction: "顶光·通过天窗"
+        intensity: 70
+      rim_light:
+        type: "窗口侧光"
+        color_temp: 5600
+        direction: "左侧窗"
+        intensity: 40
+      fill_light:
+        type: "地面+墙面漫反射"
+        direction: "下方+正面"
+        intensity: 25
+      atmosphere:
+        - "高调·明亮"
+        - "自然光为主，无强烈阴影"
+        - "证据展示区特写打光（微偏暖）"
+        - "人群区冷调，主角区微暖"
+      reference: "錦灰局 場4·公验棚"
+
+    门廊对峙:
+      id: "L06"
+      style: "门廊对峙"
+      scene_types: ["门口对决", "走廊遭遇", "门槛瞬间"]
+      key_light:
+        type: "门内光源"
+        color_temp: 2600  # K（暖）
+        direction: "门内向外"
+        intensity: 70
+      rim_light:
+        type: "室外环境光"
+        color_temp: 5600  # K（冷）
+        direction: "门外向内"
+        intensity: 50
+      fill_light:
+        type: "门框漫反射"
+        direction: "两侧"
+        intensity: 15
+      atmosphere:
+        - "门槛=光的分界线"
+        - "门内暖·门外冷"
+        - "人物跨门瞬间光线骤变"
+        - "剪影→面部渐显"
+      reference: "錦灰局 場3·织坊门前"
+
+  # ===== 关键帧(KF)灯光标记 =====
+  keyframe_lights:
+    description: "每个场景选取1-2个关键帧独立标注灯光参数"
+    examples:
+      - kf_id: "KF01"
+        name: "刑房贴喉瞬间"
+        scene: "場1"
+        special: "刀锋反光+瞳孔特写·Key Light提升至90%"
+      - kf_id: "KF06"
+        name: "雨夜破门"
+        scene: "場6"
+        special: "破门瞬间冷暖光对冲·Rim Light提升至60%"
+
+  # ===== 色温对撞对照表 =====
+  color_temperature_pairs:
+    - name: "冷青铜据光"
+      key: 5400
+      rim: 2600
+      effect: "冷面暖边，权力与危险的视觉化"
+    - name: "月火对撞"
+      key: 2600
+      rim: 5400
+      effect: "暖面冷边，毁灭与希望并存"
+    - name: "冷暖门界"
+      key: 2600
+      fill: 5600
+      effect: "门槛分界，内外世界的视觉化"

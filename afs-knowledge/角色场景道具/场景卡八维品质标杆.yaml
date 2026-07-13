@@ -1,0 +1,87 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 场景卡八维品质标杆 — AI导演
+# 来源：Seedance 2.0 camera_movement_ref 维度集成 (07/07-07/08)
+# 用途：Agent B 场景卡产出的 quality benchmark
+# 纳入日期：2026-07-09
+
+reference_image: references/场景卡八维品质标杆_雨夜刑房.jpg
+
+## 场景卡九维结构（v5.0：+投放合规维度，2026-07-12）
+# 原8维 + 第9维：投放合规（参考 skills/knowledge/平台审核规则.yaml）
+
+scene_card:
+  id: "S-001_雨夜刑房"
+  title: "雨夜刑房开场"
+  duration: 8.9  # 秒
+  
+  ## 七维基础 + 第八维（camera_movement_ref）
+  dimensions:
+    - id: d1_构图
+      name: 构图
+      required: true
+      example: "三分构图，人物左1/3"
+      
+    - id: d2_光位
+      name: 光位
+      required: true
+      options: [主光, 辅光, 背光, 侧光, 顶光, 底光, 环境光]
+      example: "侧逆光 + 烛火主光"
+      
+    - id: d3_色调
+      name: 色调
+      required: true
+      example: "冷色 6500K 低饱和"
+      
+    - id: d4_焦段
+      name: 焦段
+      required: true
+      format: "焦距 mm（如 35mm/50mm/85mm）"
+      example: "35mm 广角"
+      
+    - id: d5_视角
+      name: 视角
+      required: true
+      options: [主观, 客观, 上帝视角, POV, 过肩]
+      example: "客观"
+      
+    - id: d6_景深
+      name: 景深
+      required: true
+      options: [浅景深, 中景深, 深景深, 全景深]
+      example: "中浅景深 f2.8"
+      
+    - id: d7_运镜描述
+      name: 运镜文字描述
+      required: true
+      fallback: true  # 第八维缺失时的降级
+      example: "缓慢推镜聚焦暗格"
+      
+    - id: d8_运镜参考视频
+      name: camera_movement_ref ⭐ v4 新增
+      required: false  # 可选，但强烈推荐
+      format: "assets/camera_movements/{camera_type_en}_{n}.mp4"
+      example: "assets/camera_movements/dolly_in_1.mp4"
+      trigger: "Agent C 加载时如 d8 存在 → 走 reference_video 路径；否则降级到 d7 文字描述"
+      
+    - id: d9_投放合规
+      name: 投放合规 ⭐ v5 新增（2026-07-12 平台预审MVP）
+      required: true
+      description: 场所合规（夜店/医院/学校/未成年人场所/宗教场所/军事场所）+ 公共标识合规（地图完整/路牌/广告牌/真实品牌授权）
+      reference: skills/knowledge/平台审核规则.yaml → 场景卡_投放合规
+      
+  ## 集成规则
+  integration:
+    priority: "d8 (camera_movement_ref) > d7 (运镜描述)"
+    agent_c_check: "加载场景卡时检查 d8 文件是否存在 + 是否 < 200MB"
+    fallback_trigger: "d8 为 null / 文件不存在 / 文件 > 200MB → 降级到 d7"
+    cost_implication: "d8 引用 video_edit 档（28元/百万），含 reference_video 输入"
+
+## 必填 vs 推荐 vs 可选
+required_dimensions: [d1_构图, d2_光位, d3_色调, d4_焦段, d5_视角, d6_景深]
+recommended_dimensions: [d7_运镜描述]
+optional_dimensions: [d8_运镜参考视频]  # v4 新增，Phase 8 后逐步强约束
+
+## 与 Agent B/C 协作
+- Agent B 产出场景卡 → d7 文字必填 + d8 推荐填
+- Agent C 加载 → d8 优先 + 缺则降级 d7
+- Agent D 审核 → B15 检查 d8 与 d7 一致性 + 文件存在性

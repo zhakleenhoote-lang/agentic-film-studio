@@ -1,0 +1,239 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 审核硬指标 v2.0
+# Agent D 审核引擎使用 — 基于12份Seedance 2.0文档更新
+# 硬指标：不通过直接判1分，必须打回
+# 软指标：建议项，不阻门禁
+
+audit_criteria:
+  # ===== 硬指标（硬性门禁）=====
+  hard_gates:
+    
+    剧本硬指标:
+      - id: A01
+        check: "角色锚定词存在性"
+        description: "每个出场角色必须有锚定词（≤100字，含外貌+性格+标志动作）"
+        fail_action: "判1分·打回·要求补充锚定词"
+        severity: "blocker"
+        
+      - id: A02
+        check: "可执行率"
+        description: "△行（动作描述行）的可执行率≥90%。标注为C级的不可拍摄内容必须有替代方案。"
+        fail_action: "判1分·打回·列出不可执行行号"
+        severity: "blocker"
+        threshold: 90
+        
+      - id: A03
+        check: "钩子有效性"
+        description: "前3秒必须有明确钩子。开篇不是'从前有座山'式慢热。"
+        fail_action: "判1分·打回·需提供3秒钩子方案"
+        severity: "blocker"
+        
+      - id: A04
+        check: "节拍完整性"
+        description: "15个节拍必须全部标注对位。缺失任何节拍需有正当理由。"
+        fail_action: "判1分·打回·标注缺失节拍"
+        severity: "blocker"
+        tolerance: "最多跳过1个节拍（需注明理由）"
+        
+      - id: A05
+        check: "合规八类"
+        description: "合规八类标准逐项检查，任一违规直接打回。"
+        fail_action: "判1分·打回·列出违规项"
+        severity: "blocker"
+
+      - id: A06  # v4 新增
+        check: "对白符号标注"
+        description: "所有对白必须用 {角色: \"台词\"} 格式标注。音效用 <>，音乐用 ()，字幕用 【】。不符合打回。"
+        fail_action: "判1分·打回·列出未标注的台词行号"
+        severity: "blocker"
+        since: "管线v2.0"
+        
+      - id: A07  # v4 新增
+        check: "多人场景拆分"
+        description: "≥5人的群戏剧本必须标注 [分步渲染] 拆分方案。每个子场景≤4人。未拆分打回。"
+        fail_action: "判1分·打回·标注需拆分的场景+建议分组"
+        severity: "blocker"
+        since: "管线v2.0"
+        
+      - id: A08  # v4 新增
+        check: "动作描述量化"
+        description: "△行动作描述需参考'肢体细化+程度量化'标准。抽查每场戏≥1个△行，存在模糊描述（如'走过去''很难过''转身'）则扣分。"
+        fail_action: "判2分·警告·列出需增强的△行号（非blocker，但影响Agent B分镜质量）"
+        severity: "major"
+        since: "管线v2.0"
+        
+    分镜硬指标:
+      - id: B01
+        check: "五维完整性"
+        description: "每镜必须包含：景别/焦段/光圈/ISO/色温/运镜。缺失任一项标记"
+        fail_action: "判1分·打回·列出缺失镜头号"
+        severity: "blocker"
+        
+      - id: B02
+        check: "角色锚定嵌入"
+        description: "每个含角色的镜头Prompt必须嵌入对应角色锚定词。缺失即打回。"
+        fail_action: "判1分·打回·列出缺失镜头号"
+        severity: "blocker"
+        
+      - id: B03
+        check: "CGI合规"
+        description: "角色参考图必须是CGI/3D渲染风格（非真人照片）。真人面部参考图会被Seedance拒绝。"
+        fail_action: "判1分·打回·标注违规角色"
+        severity: "blocker"
+        
+      - id: B04
+        check: "段打包时长"
+        description: "每段≤15秒（Seedance限制）。超过需拆分。"
+        fail_action: "判1分·打回·标注超长段落"
+        severity: "blocker"
+        threshold: 15
+        
+      - id: B05
+        check: "duration 参数格式"
+        description: "段打包清单中 duration 必须是整数秒（4/5/6/8/10/12/15 或 -1），不能是毫秒。"
+        fail_action: "判1分·打回·标注违规段"
+        severity: "blocker"
+        valid_values: [4, 5, 6, 8, 10, 12, 15, -1]
+        anti_pattern: ">100 的值疑似毫秒"
+        
+      - id: B06
+        check: "分辨率一致性"
+        description: "所有段的 resolution 参数必须统一。720p为推荐，1080p仅2.0支持，4k仅2.0+极低并发。"
+        fail_action: "判1分·打回·标注不一致的段"
+        severity: "blocker"
+        valid_values: ["480p", "720p", "1080p", "4k"]
+        
+      - id: B07
+        check: "宽高比一致性"
+        description: "所有段的 ratio 参数必须统一。"
+        fail_action: "判1分·打回·标注不一致的段"
+        severity: "blocker"
+        valid_values: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"]
+
+      - id: B08  # v4 新增
+        check: "提示词符号系统"
+        description: "每镜Prompt中的对白必须用 {} 包裹，音效用 <>，音乐用 ()。缺失符号 → Seedance 不生成对应音频。"
+        fail_action: "判1分·打回·列出缺失符号的镜号"
+        severity: "blocker"
+        since: "管线v2.0 (12份文档)"
+
+      - id: B09  # v4 新增
+        check: "约束词完整性"
+        description: "每段Prompt末尾必须包含完整约束词块：'保持无字幕/不要生成Logo/不要生成水印/禁止双胞胎/面部稳定不变形/动作连贯无卡顿'。任一缺失打回。"
+        fail_action: "判1分·打回·补充约束词"
+        severity: "blocker"
+        since: "管线v2.0 (提示词指南·约束词)"
+
+      - id: B10  # v4 新增
+        check: "运镜单一性"
+        description: "每镜只能指定1种运镜方式。同时包含推拉摇移的镜头判违规（导致画面不稳定）。"
+        fail_action: "判1分·打回·列出违规镜号，要求拆分运镜"
+        severity: "blocker"
+        since: "管线v2.0 (提示词指南·运镜)"
+
+      - id: B11  # v4 新增
+        check: "素材数量控制"
+        description: "每段 reference_image ≤ 4-5张（推荐）。超过上限 → 模型特征优先级混乱，风格冲突/主体识别模糊。≤9张为硬上限。"
+        fail_action: "判1分·打回·标注超量段，建议精简"
+        severity: "blocker"
+        soft_limit: 5
+        hard_limit: 9
+        since: "管线v2.0 (提示词指南·素材配置策略)"
+
+      - id: B12  # v4 新增
+        check: "多人场景拆分"
+        description: "≥5人的场景必须在段打包中标注分组策略。每组参考人物≤4人。超过4人直接传参考图 → 人物少/多/重复风险极高。"
+        fail_action: "判1分·打回·标注需拆分的场景段"
+        severity: "blocker"
+        since: "管线v2.0 (提示词指南·参考人物过多)"
+
+      - id: B13  # v4 新增
+        check: "定价档位标注"
+        description: "段打包清单每段必须标注 tier: 纯生成/视频编辑。首段=纯生成(46元/百万)，有 reference_video 的段=视频编辑(28元/百万，07/09 ListBill 实测校正)。未标注 → Agent C 无法算费用。"
+        fail_action: "判1分·打回·补充tier标注"
+        severity: "blocker"
+        valid_tiers: ["纯生成", "视频编辑"]
+        since: "管线v2.0 (定价)"
+
+      - id: B14  # v5 新增 (07/10 时长验证测试发现)
+        check: "Seedance 双引号对白格式"
+        description: "Agent B 输出到段打包清单的 text 字段中，对白必须用 双引号 包裹（Seedance 2.0 API 真实触发格式）。花括号{} 包裹 → API 不识别 → 视频无对白。"
+        fail_action: "判1分·打回·列出未用双引号的镜号"
+        severity: "blocker"
+        examples:
+          正确: '男人说："你记住..."'
+          错误: '男人说：{你记住...}'
+        since: "v5 (07/10 时长验证测试·红线9修复)"
+
+      - id: B15  # v5 新增
+        check: "Agent C 渲染前对白格式自动转换兜底"
+        description: "Agent C 构造 Seedance API request body 时，必须调用 transform_dialogue_quotes() 自动把 {} 台词转成 双引号（pipeline 层兜底）。转换日志写入 _executor_logs/dialogue_transform.jsonl。"
+        fail_action: "判1分·警告·列出转换次数（不阻断，但 Agent B 源头要修）"
+        severity: "major"
+        since: "v5 (07/10 时长验证测试·兜底机制)"
+
+    资产硬指标:
+      - id: C01  # v4 重大修正 ⚠️
+        check: "角色参考图格式"
+        description: >
+          ⚠️ 12份官方文档明确：禁止人物三视图/多视图！
+          每个角色必须生成两张独立图片：
+          1) 人脸特写图：肩以上、无表情、面部占2/3、竖版
+          2) 全身正面图：全身正面、竖版
+          检测到三视图/多视图拼合 → 直接打回。
+        fail_action: "判1分·打回·要求改生'人脸特写+全身正面'两张独立图"
+        severity: "blocker"
+        since: "管线v2.0 (12份文档·ID漂移/双胞胎根因)"
+        forbidden: ["三视图", "多视图", "多角度合成", "九宫格拼贴"]
+        required: ["人脸特写图", "全身正面图"]
+        
+      - id: C02
+        check: "道具多角度视图"
+        description: "每个核心道具至少多角度图。对标道具卡六维标准。"
+        fail_action: "判1分·打回·标注缺失视图"
+        severity: "blocker"
+        
+      - id: C03
+        check: "统一母提示词嵌入"
+        description: "所有资产生成必须包含统一母提示词（3A写实CG/PBR材质/电影叙事光影/8K/AAA）"
+        fail_action: "判1分·打回·标注缺失资产"
+        severity: "blocker"
+
+    # ===== 软指标（建议项）=====
+    soft_criteria:
+      - id: S01
+        name: "情感弧光"
+        description: "主角是否有完整的情绪变化曲线？"
+        scoring_hint: "有则加分，缺则扣至3分，不阻门禁"
+        
+      - id: S02
+        name: "风格一致性"
+        description: "视觉风格是否跨镜头统一？"
+        scoring_hint: "色卡HEX值跨镜头偏差<10%为优秀"
+        
+      - id: S03
+        name: "创意新颖度"
+        description: "是否有突破套路的创意元素？"
+        scoring_hint: "纯鼓励项，不影响基础分"
+        
+      - id: S04
+        name: "段间衔接流畅度"
+        description: "镜头组之间的过渡是否自然？"
+        scoring_hint: "参考链完整且render_mode正确为优秀"
+
+  # ===== 返工触发 =====
+  retake_triggers:
+    soft_retake:
+      description: "同一维度连续2次<4分，触发软返工"
+      action: "显示警告，不强制打断"
+    hard_retake:
+      description: "同一硬指标连续3次触发，自动标记为系统缺陷"
+      action: "强制暂停，要求人工介入"
+      auto_tag: "system_flaw"
+
+  # ===== S+ 定稿规则 =====
+  release_gate:
+    rule: "全部硬指标通过 + 总分≥4.0分"
+    pass_label: "S+"
+    conditional_pass: "硬指标全过但软指标<3.0 → 标记为S（条件通过），附建议"
+    fail_label: "打回"

@@ -1,0 +1,119 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 救猫咪节拍表模板
+# 用于 Agent A 剧本产出阶段，对15个叙事节拍进行精确对位
+# 基于 Blake Snyder "Save the Cat" 理论 + 锦灰局实战对标
+
+beat_sheet:
+  template_name: "救猫咪15节拍·短剧模板"
+  total_duration: 150  # 秒，可调
+  beats:
+    - id: 1
+      name: "开篇画面"
+      eng: "Opening Image"
+      time_range: "0-5s"
+      description: "定调。一个画面概括全剧基调、主题、世界观。避免旁白堆砌。"
+      check: "观众能否在3秒内感知到剧集类型和情绪基调？"
+
+    - id: 2
+      name: "主题陈述"
+      eng: "Theme Stated"
+      time_range: "5-10s"
+      description: "一句话点题。通常由配角说出，主角此时还听不懂。"
+      check: "是否有一句可引用的话点出了核心价值？"
+
+    - id: 3
+      name: "铺垫"
+      eng: "Set-Up"
+      time_range: "10-25s"
+      description: "展示主角的日常、缺陷、愿望。所有角色登场。埋下伏笔。"
+      check: "主角的致命缺陷是否可见？所有关键角色是否已登场？"
+
+    - id: 4
+      name: "激励事件"
+      eng: "Catalyst"
+      time_range: "25-30s"
+      description: "打破日常的事件。主角的世界从此改变。这是'必须进场'的时刻。"
+      check: "事件是否足够大以至于主角无法忽视？是否在30秒内触发？"
+
+    - id: 5
+      name: "辩论"
+      eng: "Debate"
+      time_range: "30-37s"
+      description: "主角犹豫、质疑、抗拒。'我真的要做这件事吗？'最后做出决定。"
+      check: "主角是否表现出真实的犹豫？决策是否有代价？"
+
+    - id: 6
+      name: "进入第二幕"
+      eng: "Break into Two"
+      time_range: "37-45s"
+      description: "主角主动跨过门槛，进入新世界。不可逆转的决定。"
+      check: "是否有一个明确的'门关上'的瞬间？观众是否感受到世界变了？"
+
+    - id: 7
+      name: "B故事"
+      eng: "B Story"
+      time_range: "45-55s"
+      description: "副线展开——通常是情感线、友谊线或师徒线。帮助主角成长。"
+      check: "B故事是否与A故事产生对照？是否有情感温度？"
+
+    - id: 8
+      name: "游戏时间"
+      eng: "Fun and Games"
+      time_range: "55-75s"
+      description: "核心卖点。观众最期待的'爽点'集中区。主角在新世界探索、试错、升级。"
+      check: "这段是否最'好看'？是否兑现了海报承诺？"
+
+    - id: 9
+      name: "中点"
+      eng: "Midpoint"
+      time_range: "75-80s"
+      description: "伪胜利或伪失败。赌注升级。主角以为赢了（或输了），但真正的挑战才刚开始。"
+      check: "是否有'你以为结束了？才刚开始'的感觉？赌注是否明显升高？"
+
+    - id: 10
+      name: "反派逼近"
+      eng: "Bad Guys Close In"
+      time_range: "80-95s"
+      description: "反派/阻力升级。主角的缺陷开始暴露。内外夹击。"
+      check: "阻力是否从外部+内部两个方向施压？主角的旧方法是否开始失效？"
+
+    - id: 11
+      name: "一无所有"
+      eng: "All Is Lost"
+      time_range: "95-100s"
+      description: "最低点。主角失去最重要的东西——可能是人、信念、或机会。'比死更糟的时刻'。"
+      check: "是否有'死亡的气息'（不一定是真死）？观众是否感到绝望？"
+
+    - id: 12
+      name: "灵魂黑夜"
+      eng: "Dark Night of the Soul"
+      time_range: "100-112s"
+      description: "主角在废墟中反思。面对自己的缺陷。这是转变的前夜。"
+      check: "主角是否在直面自己的缺陷而非外部敌人？"
+
+    - id: 13
+      name: "进入第三幕"
+      eng: "Break into Three"
+      time_range: "112-118s"
+      description: "主角找到新的方法/信念/盟友。携带'新武器'回归。A故事和B故事交汇。"
+      check: "解决方案是否来自B故事？主角是否带着'新我'回来？"
+
+    - id: 14
+      name: "高潮"
+      eng: "Finale"
+      time_range: "118-142s"
+      description: "最终对决。新方法vs旧问题。主角用新学到的能力解决问题。"
+      check: "是否由主角主动推动？是否有逆转？新方法是否奏效？"
+
+    - id: 15
+      name: "终局画面"
+      eng: "Final Image"
+      time_range: "142-150s"
+      description: "呼应开篇。展示主角的变化。抛出下集钩子（可选）。"
+      check: "是否与开篇画面形成对照？主角是否明显不同？是否有下集期待？"
+
+  # 短剧特化规则
+  short_drama_adaptations:
+    pacing: "节拍可以压缩但不可跳过。时间标尺是建议值，±20%可调。"
+    hook: "3秒钩子优先于开篇画面——用第4拍(激励事件)的碎片做前置闪回。"
+    episode_link: "终局画面必须包含下集钩子（可以是视觉钩子而非台词）。"

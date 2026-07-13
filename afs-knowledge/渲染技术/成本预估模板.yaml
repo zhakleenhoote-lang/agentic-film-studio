@@ -1,0 +1,83 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 成本预估模板 v1.0
+# Agent C 渲染前/后使用
+# 基于 Seedance 2.0 API 定价 + 豆包 TTS 定价 + DeepSeek token 定价
+
+cost_template:
+  version: "1.0"
+  pricing:
+    seedance_2_0:
+      model_id: "doubao-seedance-2-0-260128"
+      endpoint_id: "ep-20260705101905-6sz4b"
+      billing_unit: "per_million_tokens"
+      pricing:  # 07/08 ListBill 实测校正（render_v3 PRICE_MAP 实测锚定）
+        tier_pure_generation:
+          unit_price_yuan_per_million_tokens: 46
+          description: "纯生成档，无 video_url 输入"
+        tier_video_editing:
+          unit_price_yuan_per_million_tokens: 28
+          description: "视频编辑档（extend / 含 reference_video，含段间衔接）"
+      note: "实际价格以火山引擎控制台为准（ListBill OpenAPI 可查询）。07/09 19:46 锁定：纯生成 46 / 视频编辑 28，render_v3 PRICE_PURE_GEN/PRICE_WITH_VIDEO 双档常量实测一致。"
+    
+    tts_doubao:
+      provider: "豆包语音 SeedTTS 2.0"
+      unit_price: 0.02  # 元/千字符
+      billing_unit: "per_1000_chars"
+    
+    tongyi_wanxiang:
+      provider: "通义万相2.5"
+      unit_price: 0.06  # 元/张（CGI生成）
+      billing_unit: "per_image"
+    
+    deepseek_text:
+      model: "deepseek-v4-pro"
+      input_price: 0.001  # 元/千token
+      output_price: 0.004  # 元/千token
+      note: "Agent A/B/D 对话消耗，约几毛钱/次"
+
+  estimation_formula:
+    total_cost: "seedance_cost + tts_cost + image_cost + text_cost"
+    seedance_cost: "sum(seg.completion_tokens / 1000000 * tier_unit_price for seg in segments)"
+    tts_cost: "总对白字符数 ÷ 1000 × 0.02"
+    image_cost: "总资产图片数 × 0.06"
+    text_cost: "总token消耗 ÷ 1000 × 0.0025（平均）"
+    tier_pricing:
+      "纯生成": 46
+      "视频编辑": 28
+    
+  safety_margin: 1.2  # 20%浮余
+
+  example_estimation:
+    project: "锦灰局 EP01"
+    duration: 150  # 秒
+    characters: 8
+    props: 12
+    scenes: 6
+    shots: 25
+    
+    breakdown:
+      seedance_cost: 7.50  # 150s × 0.05
+      tts_cost: 2.00       # ~100k chars对白
+      image_cost: 3.12     # (8+12+6) × 3图 × 0.06
+      text_cost: 0.50      # Agent对话消耗
+      subtotal: 13.12
+      with_margin: 15.74   # ×1.2
+    
+    per_minute: 6.30       # 元/分钟
+    note: "对比AniShort 119元/分钟、小云雀 ~10元/分钟"
+
+  output_format:
+    file: "04_渲染/成本预估.md"
+    sections:
+      - "token_estimate": "Agent A/B/C/D 文本对话预估"
+      - "image_estimate": "通义万相CGI生成预估（角色卡+道具卡+氛围图）"
+      - "video_estimate": "Seedance视频生成预估"
+      - "tts_estimate": "豆包TTS对白配音预估"
+      - "total_estimate": "汇总+20%安全边际"
+      - "actual_tracking": "实际扣费回写（每段渲染后更新）"
+
+  tracking_rules:
+    - "每段Seedance渲染完成后记录实际耗时费用"
+    - "每个TTS批次完成后记录实际字符费用"
+    - "最终生成 cost_variance.md 对比预估vs实际"
+    - "偏差超过30%的标注为异常，需人工review"

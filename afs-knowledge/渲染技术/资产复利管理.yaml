@@ -1,0 +1,75 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 资产复利管理指南 v1.0
+# Agent B 资产产出阶段 + 跨项目复用
+# 设计原则：文件系统优先，3项目验证后再评估数据库
+
+asset_compound:
+  version: "1.0"
+  philosophy: |
+    资产不只是"当前项目的素材"。
+    锦灰局的8角色、12道具、6场景——做完EP01后，
+    EP02-05可以复用80%的资产，只需要增补新角色/新场景。
+    这就是"复利"的本质：每次创作都在积累可重复使用的IP资产。
+  
+  # ===== 资产目录结构 =====
+  directory_structure:
+    global_assets: "~/.openclaw/workspace/assets/"
+    subdirs:
+      角色库: "assets/characters/"
+      场景库: "assets/scenes/"
+      道具库: "assets/props/"
+      模板库: "assets/templates/"
+      项目资产: "assets/projects/{项目代号}/"
+
+  # ===== 角色库结构 =====
+  character_repo:
+    path: "assets/characters/"
+    per_character:
+      - "{角色名}/"
+      - "  ├── {角色名}_人脸特写.png"    # ⚠️ v2: 肩以上/无表情/面部占2/3
+      - "  ├── {角色名}_全身正面.png"    # ⚠️ v2: 全身/竖版
+      - "  ├── 表情/{角色名}_表情{1-6}.png"
+      - "  ├── 动作/{角色名}_动作{描述}.png"
+      - "  ├── 服装/{角色名}_服装_{场景}.png"
+      - "  ├── {角色名}_角色卡_九维.yaml"
+      - "  ├── {角色名}_锚定词.yaml"
+      - "  └── {角色名}_元数据.json"
+    metadata:
+      example: |
+        {
+          "name": "程见微",
+          "projects": ["锦灰局_EP01", "锦灰局_EP02"],
+          "first_created": "2026-07-06",
+          "versions": 3,
+          "style": "北宋写实CGI",
+          "母提示词已嵌入": true
+        }
+
+  # ===== 跨项目复用规则 =====
+  reuse_rules:
+    same_ip_different_episode:
+      description: "同一IP的EP02复用EP01角色库，仅增量更新"
+      action: "直接从资产库引用，不重新生成"
+      
+    different_ip_same_style:
+      description: "不同项目但相同风格（如都是北宋写实CGI）"
+      action: "可作参考，但需重新生成（不同IP角色不同）"
+    
+    template_reuse:
+      description: "种子模板（古言悬疑/都市甜宠/奇幻修仙）可直接加载"
+      action: "加载预设后根据新项目调整角色/场景参数"
+
+  # ===== 资产版本管理 =====
+  versioning:
+    rule: "每次修改保持旧版本，新文件加_v{N}后缀"
+    example: "程见微_角色卡_九维_v1.png → 程见微_角色卡_九维_v2.png"
+    changelog: "每个角色/场景/道具根目录下维护 changelog.md"
+
+  # ===== 触发条件 =====
+  migration_gate:
+    description: "满足以下条件后评估是否需要从文件系统迁移到数据库"
+    conditions:
+      - "已累计3个以上完整项目"
+      - "角色库超过50个角色"
+      - "跨项目复用比率超过60%"
+    default: "不满足任何条件时，保持文件系统"
