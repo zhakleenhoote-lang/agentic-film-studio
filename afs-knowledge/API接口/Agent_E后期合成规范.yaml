@@ -1,0 +1,94 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# Agent E 后期合成规范 — AI导演
+# 纳入日期：2026-07-09
+# 用途：Agent E 后期合成引擎的全流程 SSOT（之前散落在 SKILL.md / 管线规范 / 多个脚本）
+
+# 概况
+overview:
+  agent: "Agent E / ai-director-post"
+  定位: "AI导演工作流第 5 阶段（最后一道关卡）"
+  输入: "Agent C 渲染产物（clips/ + last_frame_*.png + 段打包清单 + 成本追踪.md）"
+  输出: "final.mp4 + subtitles.srt + 字幕时间轴对齐验证报告"
+
+# 工作流
+workflow:
+  - step: "01 加载段打包清单"
+    desc: "读 Agent C 的 04_渲染/段渲染清单.yaml + 成本追踪.md"
+    
+  - step: "02 拼接视频"
+    desc: "ffmpeg concat seg_01.mp4 + seg_02.mp4 + ... → raw_final.mp4"
+    tool: "ffmpeg -f concat -safe 0 -i concat_list.txt -c copy raw_final.mp4"
+    
+  - step: "03A 字幕生成（双路径）"
+    options:
+      path_a_tts: "Agent B/C 已生成对白 TTS MP3 → ffmpeg 拼接音轨"
+      path_b_srt: "Agent A 字幕 SRT → ffmpeg 字幕叠加"
+    alignment_check: "字幕时间轴对齐验证（必须基于实际视频时长，不是预估）"
+    
+  - step: "03B 音频合成"
+    desc: "音频方案优先 generate_audio=true（Seedance 原生），TTS 兜底"
+    
+  - step: "04 字幕叠加"
+    desc: "ffmpeg subtitles=subtitle.srt 或 ass"
+    
+  - step: "05 终输出"
+    desc: "final.mp4 + subtitles.srt + 字幕对齐报告.md"
+
+# 关键风险（07/08 测试发现）
+risks:
+  R1: "ffmpeg / TTS 调用不计入成本 → 需 AGENT_E_API_LOG 埋点"
+  R2: "幂等守卫缺失 → 同输入跑多次重复扣费"
+  R3: "SRT 字幕对齐靠预估时间码 → 必须基于实际视频时长 verify"
+  R4: "不强制读 04_渲染/成本追踪.md → 漏算"
+  R5: "目录命名不一致（05_后期 vs 06_成片 vs 06_交付）→ 统一 06_成片/"
+
+# 字幕对齐验证（红线 E-3）
+subtitle_alignment:
+  验证步骤:
+    - "读 Agent A 输出的 subtitles.srt"
+    - "读 Agent C 输出的 clips/seg_N.mp4 实际时长（ffprobe）"
+    - "对比 SRT 时间码 vs 实际视频时长"
+    - "偏差 > 0.5s → 报警 + 自动重算时间码（按段时长比例）"
+    - "生成 字幕对齐报告.md 写入 06_成片/"
+  
+  旧方法（07/08 之前）:
+    desc: "SRT 时间码是 Agent A 预估的，没对齐实际视频时长"
+    consequence: "字幕提前/落后 1-3 秒"
+  
+  新方法（v2 起）:
+    desc: "ffprobe 实际时长 + 比例重算 + verify 报告"
+    file_lock: ".srt_aligned.lock（保护人工调整结果）"
+
+# 与其他 Agent 协作
+collaboration:
+  upstream_c: "Agent C 渲染产物 → 04_渲染/clips/ + 成本追踪.md + 段渲染清单.yaml"
+  upstream_a: "Agent A 字幕 SRT（可能需要重算）"
+  downstream_d: "Agent D 第六关审计（成本 + 字幕对齐 + 视频质量）"
+  next_step: "交付张大马（飞书 DM + outputs/{项目}/06_成片/）"
+
+# 输出目录
+output:
+  primary_dir: "outputs/{项目名}/06_成片/"
+  files:
+    - "final.mp4 — 最终成片（含字幕+音频）"
+    - "final_raw.mp4 — 拼接视频（无字幕/无后期）"
+    - "subtitles.srt — 字幕（已对齐）"
+    - "字幕对齐报告.md — 时间码偏差报告"
+    - "成本汇总.md — Agent C + Agent E 总成本"
+
+# 工具链
+tools:
+  ffmpeg: "必须使用本地 ffmpeg（避免云端依赖）"
+  subtitle_overlay:
+    simple: "ffmpeg -i raw.mp4 -vf subtitles=subtitle.srt final.mp4"
+    styled: "ffmpeg -i raw.mp4 -vf ass=subtitle.ass final.mp4（ASS 支持样式）"
+  concat: "ffmpeg -f concat -safe 0 -i concat_list.txt -c copy raw.mp4"
+
+# 已落地与待修（07/09 复盘）
+status:
+  已完成: "ffmpeg 拼接 + 字幕叠加 + 字幕时间码 verify 框架"
+  待修:
+    - "R1 API 计费埋点（AGENT_E_API_LOG）"
+    - "R2 幂等守卫"
+    - "R4 强制读成本追踪.md"
+    - "R5 目录命名统一"

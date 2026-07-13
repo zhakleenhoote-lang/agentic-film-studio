@@ -1,0 +1,74 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 三幕标尺模板
+# 用于 Agent A 剧本产出阶段的时间分配校验
+# 基于锦灰局实战 + 150秒短剧标准
+
+three_act_scale:
+  template_name: "三幕标尺·短剧150秒"
+  
+  acts:
+    - act: 1
+      name: "第一幕·设局"
+      time_range: "0-37s"
+      pct: "25%"
+      beats: [1,2,3,4,5]
+      description: "建立世界、引入冲突、主角做出不可逆决定"
+      must_contain:
+        - "主角缺陷可视化"
+        - "激励事件（不可忽视的冲击）"
+        - "跨门槛瞬间（门关上的感觉）"
+      forbidden:
+        - "大段背景介绍"
+        - "主角被动等待"
+      
+    - act: 2
+      name: "第二幕·对抗"
+      time_range: "37-112s"
+      pct: "50%"
+      beats: [6,7,8,9,10,11,12]
+      description: "探索、对抗、低点、反思——最长的部分"
+      must_contain:
+        - "B故事展开（情感线/师徒线）"
+        - "游戏时间（核心卖点兑现）"
+        - "中点伪胜利/伪失败"
+        - "一无所有的最低点"
+      forbidden:
+        - "主角躺平超过5秒"
+        - "无代价的胜利"
+      
+    - act: 3
+      name: "第三幕·解决"
+      time_range: "112-150s"
+      pct: "25%"
+      beats: [13,14,15]
+      description: "新方法回归、高潮对决、终局定格"
+      must_contain:
+        - "A故事与B故事交汇"
+        - "主角主动推动解决"
+        - "呼应开篇画面的终局画面"
+        - "下集钩子（视觉或台词）"
+      forbidden:
+        - "反派自己崩溃（应由主角击败）"
+        - "开放式结尾（短剧需要明确钩子）"
+
+  # 赛道差异
+  genre_variations:
+    古言悬疑:
+      act1_hook: "用闪回开场（高潮碎片前置）"
+      midpoint_type: "伪胜利（找到关键证据）"
+      all_is_lost_focus: "证据链断裂 / 证人死亡"
+    都市甜宠:
+      act1_hook: "用相遇/告白碎片前置"
+      midpoint_type: "伪胜利（关系升温）"
+      all_is_lost_focus: "误会/第三者/身份曝光"
+    奇幻修仙:
+      act1_hook: "用战斗/突破碎片前置"
+      midpoint_type: "伪失败（功法失效/被碾压）"
+      all_is_lost_focus: "修为尽失/挚爱被擒"
+
+  # 校验规则
+  validation:
+    tolerance: "±20%时间偏差容忍"
+    act1_max: 45  # 秒
+    checkpoint: "中点(75s)必须在总时长50%位置，偏差＜5%"
+    hook_rule: "终局画面后10秒内必须有明确钩子信号"

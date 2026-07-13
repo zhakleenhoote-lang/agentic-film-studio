@@ -1,0 +1,61 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# Seedream 5.0 对接规范 — AI导演 i2i 主方案
+# 纳入日期：2026-07-09
+# 用途：Agent B 角色 CGI 参考图生成（取代通义万相 2.5 的可选方案）
+
+# 概况
+overview:
+  平台: "字节跳动 Seedream 5.0（即梦）"
+  用途: "Agent B 角色 CGI 参考图 + 场景氛围图 + 道具图生成"
+  定位: "通义万相 2.5 之外的 i2i 主方案（更高写实度，更适合电影质感）"
+  cost: "按张计费 ~¥0.08/张"
+
+# API 端点
+api:
+  base_url: "https://ark.cn-beijing.volces.com/api/v3"
+  model: "doubao-seedream-5-0-250128"
+  endpoint_id: "ep-20260709-seedream5"
+  auth: "Bearer Token（与 Seedance 2.0 共用 ARK Key）"
+
+# 调用方式
+request_format:
+  headers:
+    Authorization: "Bearer ${ARK_API_KEY}"
+    Content-Type: "application/json"
+  body_schema:
+    model: "doubao-seedream-5-0-250128"
+    prompt: "{8 要素 Prompt}"
+    image_size: "1024x1024"  # 或 1024x1792 竖版
+    n: 1  # 生成张数
+    response_format: "url"  # 或 "b64_json"
+    style: "cinematic"  # 可选：cinematic/anime/photorealistic
+
+# 凭证
+credentials:
+  path: "~/.openclaw/credentials/seedance_ark.json"  # 共用 ARK Key
+  loader: "scripts/_credentials.py load_seedance_ark_key()"
+
+# 与通义万相 2.5 对比
+vs_tongyi_wanxiang:
+  写实度: "Seedream 5.0 > 通义万相 2.5（更接近 CGI 电影质感）"
+  速度: "Seedream 5.0 ≈ 通义万相 2.5（~10-30s/张）"
+  成本: "Seedream 5.0 ¥0.08/张 > 通义万相 2.5 ¥0.06/张（差异不大）"
+  角色一致性: "Seedream 5.0 + 文字锚定描述 较好；通义万相 2.5 + 角色参考图 更稳"
+
+# 使用建议
+recommendations:
+  角色 CGI 参考图: "优先 Seedream 5.0（写实度更高，与统一母提示词契合）"
+  场景氛围图: "通义万相 2.5 或 Seedream 5.0 都行（场景卡对写实度要求较低）"
+  道具图: "通义万相 2.5（道具简单，¥0.06 够用）"
+
+# Agent B 集成
+agent_b_integration:
+  决策点: "B 在 verify_assets() 前选模型，建议 Seedream 5.0 默认 + 通义万相 2.5 备选"
+  fallback_chain: "Seedream 5.0 → 通义万相 2.5 → 报错"
+  cost_logging: "每次调 API 必写 memory/api-costs.md（已记账）"
+
+# 已知限制
+limitations:
+  - "Seedream 5.0 仍不支持三视图混排（与 Seedance 一致），只能单图"
+  - "真人面部有隐私过滤，可能触发安全拒绝（参考 0708 教训）"
+  - "5.0 在某些 prompt 下会产生卡通化风格（违反统一母提示词的 photorealistic CGI 要求），需 prompt 加约束词"

@@ -1,0 +1,300 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 角色一致性SOP — Agent B 角色参考图 + 关键帧 标准化流程
+# Phase 7 反例根因：陈影人脸≠陈影全身、关键帧全是国外人
+# 建立日期：2026-07-09
+# 用途：所有项目自动遵守，不漂移、不出国
+
+## 1. 角色参考图生成规范
+
+### 1.1 生成顺序
+```
+角色A_人脸特写.png（t2i 第1步）
+  └── i2i ──→ 角色A_全身.png（基于人脸图生成）
+角色B_人脸特写.png（t2i 第1步）
+  └── i2i ──→ 角色B_全身.png（基于人脸图生成）
+```
+
+### 1.2 第1步：人脸特写（t2i 通义万相2.5）
+```python
+face_prompt = f"""
+Chinese / East Asian {char.role_type}, CGI character portrait,
+shoulder-up, neutral expression, face occupying 2/3 of frame,
+vertical composition, {char.visual_anchor},
+photorealistic CGI rendering, PBR materials, cinematic lighting,
+neutral grey background, soft front lighting.
+中国/东亚人物、3A写实CG、PBR材质、电影级光影、中性灰背景、柔和正面光。
+"""
+```
+
+### 1.3 第2步：全身正立（i2i — 必须基于人脸图）
+#### 方案A：Seedream 5.0（推荐 · 支持 i2i + 人脸一致性）
+
+```python
+# Seedream 5.0 i2i API 调用
+seedream_payload = {
+    "model": "seedream-5.0",
+    "input": {
+        "i2i": True,
+        "role_consistency": True,  # 人脸一致性开关
+        "source_image_path": "{角色A_人脸特写.png}",
+        "prompt": f"""
+Chinese / East Asian {char.role_type}, Full body CGI character,
+standing pose, front view, vertical composition,
+{char.visual_anchor}, {char.full_outfit},
+photorealistic CGI rendering, PBR materials, cinematic lighting,
+neutral grey background, soft front lighting.
+中国/东亚人物、3A写实CG、PBR材质、全身正面、站立姿态、电影级光影。
+保持面部与参考图完全一致，发型、眉型、肤色、五官位置不变。
+        """
+    }
+}
+```
+
+#### 方案B：IP-Adapter（备选 · 无原生 i2i 时）
+
+```python
+# IP-Adapter + 通义万相2.5 FaceFix
+ip_adapter_payload = {
+    "model": "wan2.7-image-pro",
+    "input": {
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image", "image": "{角色A_人脸特写.png}"},
+                {"type": "text", "text": f"""
+Chinese / East Asian {char.role_type}, Full body CGI character,
+standing pose, front view, vertical composition,
+{char.visual_anchor}, {char.full_outfit},
+photorealistic CGI rendering, PBR materials, cinematic lighting,
+neutral grey background, soft front lighting.
+保持面部ID与提供的参考图完全一致，不可改变五官位置和比例。
+                """}
+            ]
+        }]
+    }
+}
+```
+
+#### 方案C：同 prompt 复现+语义锚定（兜底）
+若 i2i API 不可用，**必须**在全身 prompt 中加语义锚定词：
+```
+面部特征：{面部锚定词}（全脸五官分布/眉形/颧骨/下颌线 精确文字描述）
+```
+
+### 1.4 角色卡必含字段（人种+服装+伤疤锚点）
+
+```yaml
+人种: "Chinese / East Asian"
+皮肤: "偏黄暖调 / 东亚人种肤质"
+服装锚点:
+  颜色: "黑色战术外套"
+  款式: "立领拉链，左臂有绷带缠绕"
+  材质: "高密度尼龙布料"
+伤疤/装饰锚点:
+  - 位置: "右眉上方"
+    描述: "垂直刀疤，长约3cm"
+  - 位置: "左臂"
+    描述: "旧伤绷带，边缘微渗血"
+```
+
+---
+
+## 2. 关键帧生成规范
+
+### 2.1 关键帧 prompt 模板（必含人种硬约束）
+
+```
+Chinese / East Asian {性别/年龄}，{服装锚点}，{伤疤/装饰锚点}，
+{动作描述}，{场景环境}，{光影色温}，{风格关键词}
+```
+
+### 2.2 正确示例（含人种）
+```python
+# ✅ 正确：首位加人种约束
+kf_prompt = f"""
+Chinese / East Asian middle-aged man, black tactical jacket, bandaged left arm,
+scar above right eyebrow, slowly removing jacket in abandoned factory,
+warm sunset sidelight, volumetric dust particles,
+photorealistic CGI, PBR, cinematic lighting, 8K, AAA.
+"""
+```
+
+### 2.3 错误示例（Phase 7 反例）
+```python
+# ❌ 错误：缺人种约束 → 通义万相默认走西方
+kf_prompt = f"""
+Wide shot two men facing off in abandoned factory sunset
+Older man black jacket pulling jacket off
+"""
+```
+
+### 2.4 关键帧 i2i 规则
+每个关键帧图应该基于对应角色的"人脸特写"图 i2i 生成：
+```
+角色A_人脸特写.png → i2i → KF-N_{描述}.png
+```
+确保关键帧中的人物与角色参考图是同一个人。
+
+---
+
+## 3. 必走脚本（伪代码）
+
+### 3.1 `generate_role_refs.py`（角色参考图生成脚本）
+
+```python
+#!/usr/bin/env python3
+"""
+generate_role_refs.py — 角色参考图生成脚本（角色一致性保障）
+
+流程:
+  1. 解析角色卡九维（含人种/服装/伤疤锚点）
+  2. t2i 生成每角色的 人脸特写图
+  3. i2i 生成每角色的 全身图（基于人脸图）
+  4. verify 人脸一致性
+"""
+
+def generate_role_face(char, output_dir):
+    """t2i 生成人脸特写"""
+    prompt = f"""
+    Chinese / East Asian {char.role_type}, CGI character portrait,
+    shoulder-up, neutral expression, face 2/3 of frame, vertical,
+    {char.visual_anchor}, photorealistic CGI, PBR, cinematic lighting,
+    neutral grey background, soft front lighting.
+    中国/东亚人物、3A写实CG、PBR材质、电影级光影、中性灰背景、柔和正面光。
+    """
+    path = output_dir / f"{char.name}_人脸特写.png"
+    return call_image_api(prompt, path)  # t2i
+
+def generate_role_body(char, face_path, output_dir):
+    """i2i 生成全身图（必基于人脸特写图）"""
+    prompt = f"""
+    Chinese / East Asian {char.role_type}, Full body CGI character,
+    standing pose, front view, vertical composition,
+    {char.visual_anchor}, {char.full_outfit},
+    photorealistic CGI, PBR, cinematic lighting,
+    neutral grey background, soft front lighting.
+    中国/东亚人物、3A写实CG、PBR材质、全身正面、站立姿态、电影级光影。
+    保持面部与参考图完全一致。
+    """
+    path = output_dir / f"{char.name}_全身.png"
+    return call_i2i_api(prompt, face_path, path)  # i2i
+
+def call_i2i_api(prompt, source_image, output_path):
+    """调用 i2i API（Seedream 5.0 或 IP-Adapter）"""
+    # 详见 1.3 方案A/B
+    pass
+
+def verify_face_consistency(face_path, body_path):
+    """验证人脸一致性（积分图的 ID 特征对比）"""
+    # TODO: 接入人脸识别模型做特征比对
+    pass
+```
+
+### 3.2 `generate_keyframes.py`（关键帧生成脚本）
+
+```python
+#!/usr/bin/env python3
+"""
+generate_keyframes.py — 关键帧生成脚本（人种硬约束）
+
+流程:
+  1. 读取分镜表和角色卡
+  2. 基于角色人脸图 i2i 生成每张关键帧
+  3. prompt 首位必含 "Chinese / East Asian"
+  4. verify 人种约束
+"""
+
+def build_kf_prompt(character, action, scene, lighting, style):
+    """构建关键帧 prompt（自动加人种硬约束）"""
+    ethnicity = character.get("ethnicity", "Chinese / East Asian")
+    return f"""
+    {ethnicity} {character.role_type}, {character.visual_anchor},
+    {character.scar_description},
+    {action}, {scene}, {lighting}, {style}
+    """
+
+def generate_keyframes(characters, kf_list, output_dir):
+    """逐帧生成，i2i 模式"""
+    for kf in kf_list:
+        char = characters[kf.character_name]
+        face_path = output_dir / f"{char.name}_人脸特写.png"
+        
+        prompt = build_kf_prompt(char, kf.action, kf.scene, kf.lighting, kf.style)
+        kf_path = output_dir / f"KF-{kf.id:02d}_{kf.description}.png"
+        
+        # i2i：基于人脸图生成
+        call_i2i_api(prompt, face_path, kf_path)
+
+def verify_ethnicity_constraint(kf_prompts):
+    """验证所有关键帧 prompt 包含人种约束"""
+    required = ["Chinese", "East Asian", "中国人", "亚洲人", "东方面孔"]
+    failing = []
+    for kf_name, prompt in kf_prompts.items():
+        if not any(term in prompt for term in required):
+            failing.append(kf_name)
+    if failing:
+        raise RuntimeError(f"关键帧缺人种约束: {failing}")
+    print(f"✅ 全部 {len(kf_prompts)} 张关键帧人种约束通过")
+```
+
+---
+
+## 4. 人种硬约束检查清单
+
+| 检查项 | 检查方式 | 阻断条件 |
+|--------|----------|---------|
+| 角色人脸图 prompt 含 Chinese/Asian | grep | 缺 → 阻断 |
+| 角色全身图 prompt 含 Chinese/Asian | grep | 缺 → 阻断 |
+| 全身图是 i2i 生成（非独立 t2i） | 检查 `i2i: true` | 缺 → 阻断 |
+| 角色卡含人种字段 | yaml 字段检查 | 缺 → 阻断 |
+| 关键帧 prompt 含 Chinese/Asian | grep | 缺 → 阻断 |
+| 关键帧基于角色人脸图 i2i 生成 | 来源一致性检查 | 缺 → 警告 |
+| 多角色时各角色不漂移 | 人脸特征比对 | 无法自动 → 人工抽查 |
+
+## 5. 可复用的 i2i 调用函数
+
+```python
+def call_i2i_api(prompt: str, source_image_path: str, output_path: str,
+                  model: str = "seedream-5.0") -> bool:
+    """
+    通用 i2i 调用函数。
+    支持 Seedream 5.0 / IP-Adapter / 其他 i2i 模型。
+    
+    Args:
+        prompt: 生成 prompt（必含 Chinese/East Asian 硬约束）
+        source_image_path: 源图路径（人脸特写图）
+        output_path: 输出路径
+        model: i2i 模型名
+    
+    Returns:
+        bool: 是否成功
+    """
+    payload = {
+        "model": model,
+        "input": {
+            "i2i": True,
+            "role_consistency": True,
+            "source_image": source_image_path,
+            "prompt": prompt,
+        }
+    }
+    # 调用 API
+    response = requests.post(I2I_API_URL, json=payload, headers=HEADERS)
+    response.raise_for_status()
+    # 下载图片
+    image_url = response.json().get("output", {}).get("image_url")
+    img_data = requests.get(image_url).content
+    with open(output_path, "wb") as f:
+        f.write(img_data)
+    return True
+```
+
+## 6. 错误处理
+
+| 场景 | 处理方式 |
+|------|----------|
+| Seedream 5.0 API 不可用 | 降级到 IP-Adapter FaceFix |
+| IP-Adapter 不可用 | 降级到语义锚定（1.3 方案C） |
+| 人脸一致性验证失败 | 重试 1 次；仍失败 → 阻断并通知主 agent |
+| 角色卡无人种字段 | 阻断，通知主 agent 补全 |
+| 关键帧 i2i 失败 | 退回到 t2i 但 prompt 必含人种硬约束 |

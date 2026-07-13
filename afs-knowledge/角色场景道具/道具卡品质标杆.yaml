@@ -1,0 +1,82 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 道具卡品质标杆 — 行业标准级别参考
+# 来源：文物级道具说明图（写实风格，多格拼接）
+# 用途：Agent B 道具卡产出的 quality benchmark
+# 纳入日期：2026-07-06
+
+reference_image: references/道具卡品质标杆_月华隐纬.jpg
+
+## 道具卡七维结构（v2：+投放合规维度，2026-07-12）
+# 原6维 + 第7维：投放合规（参考 skills/knowledge/平台审核规则.yaml）
+
+道具信息:
+  名称: 月华隐纬焦绒残角
+  类别: 织物/文物
+  工艺特点: 焦绒残角工艺，干湿双态变化
+
+视觉维度:
+  - id: p1_多角度
+    name: 多角度视图
+    description: 正面/侧面/背面/细节特写，至少3个角度
+    required: true
+    
+  - id: p2_材质纹理
+    name: 材质纹理特写
+    description: 织物纹理、焦痕细节、表面质感的超近距离特写
+    required: true
+    
+  - id: p3_干湿双态
+    name: 干湿双态对比
+    description: 干燥状态 vs 湿润状态的并列对比展示
+    required: true
+    
+  - id: p4_尺寸参照
+    name: 尺寸参照物
+    description: 用手部或常见物品作为尺寸比例的直观参照
+    required: true
+    
+  - id: p5_状态对比
+    name: 使用/原始状态对比
+    description: 完好状态与磨损/使用状态的并排展示
+    required: true
+    
+  - id: p6_标注说明
+    name: 专业标注
+    description: 关键部位的名称、编号、工艺说明文字标注
+    required: true
+    
+  - id: p7_投放合规
+    name: 投放合规 ⭐ v2 新增（2026-07-12 平台预审MVP）
+    description: 道具雷区检查（枪/刀/烟/毒品/人民币等禁止）+ 商品化标识合规（商标LOGO授权/二创合规）
+    required: true
+    reference: skills/knowledge/平台审核规则.yaml → 道具卡_投放合规
+
+## 布局规范
+
+layout:
+  type: 多格拼接
+  grid: 分区标注（A/B/C/D/E）
+  panel_A_B_C: 多角度视图（正面、侧面、纹理）
+  panel_D_E: 状态对比 + 尺寸参照
+  annotation: 文字标签标注工艺名称和编号
+
+## 风格要求
+
+style:
+  category: 写实文物记录
+  lighting: 侧光+漫反射（避免硬阴影遮蔽细节）
+  color_base: 暖黄基底
+  color_accent: 深褐 + 暗金 + 黑色焦痕
+  texture: 织物纹理/焦痕质感清晰可辨
+  contrast: 干态暖调 vs 湿态冷调形成材质反差
+
+## 对Agent B的要求
+
+agent_b_requirements:
+  - 道具卡必须包含至少 p1-p5 五个核心维度
+  - ⭐ v2: p7_投放合规 为硬指标（道具雷区+商品化标识两项全部通过），不通过 = Agent D D-Stage-3.5 打回
+  - 干湿双态为标配（织物/食物/材质变化类道具必做）
+  - 必须有尺寸参照物（手或硬币等常见物品）
+  - 材质纹理需独立特写（不是全景中截取）
+  - 拼接式多格布局，分区标注（A/B/C/D/E）
+  - 统一光照避免各格色温不一致

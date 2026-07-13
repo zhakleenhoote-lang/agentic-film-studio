@@ -1,0 +1,630 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 管线规范 v4.0
+# AI导演工作流全局标准 — 基于 Seedance 2.0 12份官方文档重构
+# 覆盖：命名规范、目录结构、音频策略、提示词工程、素材管理、后期能力、常见问题预案
+
+pipeline_standard:
+  version: "4.0"
+  effective_date: "2026-07-08"
+  changelog:
+    v4.0: "运镜参考视频维度：新增 camera_movement_ref 资产类型、assets/camera_movements/目录规范、场景卡八维（+运镜参考视频）、Agent B/C 升级规范（引用@视频语法）"
+    v3.0: "P0-7: Agent E 输出目录名称重命名（与 Agent D 第五/六关对齐）"
+  based_on:
+    - "创建视频生成任务 API (volcengine.com/docs/82379/1520757)"
+    - "查询/列表/取消删除 API (82379/1521309, 1521675, 1521720)"
+    - "Doubao Seedance 2.0 系列教程 (82379/2291680)"
+    - "提示词指南 (82379/2222480)"
+    - "视频生成教程 (82379/1366799)"
+    - "私域虚拟人像素材资产库使用指南 (82379/2333565)"
+    - "Base URL及鉴权 (82379/1298459)"
+    - "错误码 (82379/1299023)"
+    - "数据订阅概述 (6349/2280948)"
+    - "创建数据订阅规则 (6349/2280949)"
+
+  # ===== 目录结构 =====
+  directory_structure:
+    project_root: "outputs/{项目简称}_{日期MMDD}/"
+    subdirs:
+      "01_剧本": "Agent A 产出：剧本/节拍表/三幕标尺/角色卡/合规报告/工程化剧本"
+      "02_分镜": "Agent B 产出：分镜表/镜头组方案/段打包清单/风格参考板/灯光方案/提示词工程"
+      "03_资产": "Agent B 产出：角色卡/道具卡/场景卡/氛围图/机位平面/运镜参考视频"
+      "04_渲染": "Agent C 产出：Seedance视频片段/尾帧/渲染日志/回退日志"
+      "06_成片": "Agent E 产出：合成成片/编辑片段/延长片段/TTS兜底/字幕/交付"
+      "06_审核": "Agent D 产出：各阶段审计报告"
+
+  # ===== 文件命名 =====
+  naming:
+    pattern: "{项目代号}_{模块}_{编号}_{描述}_v{版本}.{格式}"
+    examples:
+      - "JH_剧本_EP01_完整剧本_v1.md"
+      - "JH_分镜_EP01_分镜表_v2.yaml"
+      - "JH_资产_程见微_角色卡_v1.png"
+      - "JH_渲染_EP01_sc01_shot01_v3.mp4"
+      - "JH_后期_EP01_final_v2.mp4"
+    version_rule: "从v0或v1开始，每次修改递增。不覆盖旧版。"
+    project_codes:
+      锦灰局: "JH"
+      咖啡店: "KF"
+      TVC宣传片: "TVC"
+
+  # ===== 元数据Schema =====
+  metadata_schema:
+    required_fields:
+      - key: "creator"
+        type: "string"
+        example: "Agent C (ai-director-render)"
+        description: "产出Agent标识"
+      - key: "timestamp"
+        type: "ISO8601"
+        example: "2026-07-07T12:00:00+08:00"
+      - key: "model"
+        type: "string"
+        example: "doubao-seedance-2-0-260128"
+      - key: "version"
+        type: "semver"
+        example: "1.0.0"
+      - key: "project"
+        type: "string"
+        example: "JH_EP01"
+    optional_fields:
+      - "token_cost"
+      - "api_cost_estimate"
+      - "review_status"
+      - "parent_version"
+      - "dependencies"
+
+  # ===== 种子模板 =====
+  seed_templates:
+    古言悬疑:
+      preset:
+        visual_style: "北宋写实CG"
+        color_palette: "冷青铜据光+暗金权力光"
+        mood: "雨夜悬疑"
+        beat_sheet: "标准15拍"
+        interactive_mode: "Bottleneck 3显3隐"
+        reference: "锦灰局"
+    都市甜宠:
+      preset:
+        visual_style: "现代写实CG"
+        color_palette: "暖调+柔光"
+        mood: "都市暖甜"
+        beat_sheet: "标准15拍（压缩游戏时间）"
+        interactive_mode: "Optional"
+        reference: "待补充"
+    奇幻修仙:
+      preset:
+        visual_style: "仙侠水墨CG"
+        color_palette: "青蓝灵气+金色仙力"
+        mood: "恢弘仙侠"
+        beat_sheet: "标准15拍（延长游戏时间）"
+        interactive_mode: "Optional"
+        reference: "待补充"
+
+  # ===== 输出校验 =====
+  output_validation:
+    naming_check: "所有产出文件必须符合命名规范"
+    metadata_check: "所有产出文件必须包含required_fields元数据"
+    directory_check: "所有产出必须在正确的子目录下"
+    version_check: "不允许覆盖旧版本文件"
+
+  # ===== 强制标准流程 =====
+  mandatory_pipeline:
+    description: "所有项目必须走 Agent A→B→D→C→E 标准管线，禁止手动脚本绕过"
+    enforce: true
+    minimum_gates:
+      - gate: "Agent B 资产就绪门禁 ⭐ v4"
+        description: "Agent B verify_assets() 必须通过。全部资产（角色+道具+场景+KF）存在且>1KB。缺图→阻断+生成资产缺失清单。"
+        blocK_on_fail: true
+        skip_allowed: false
+        output_files:
+          - "03_资产/资产清单.yaml"
+          - "03_资产/资产缺失清单.json"
+      - gate: "Agent D 全关审计（第一关→第四关）⭐ v4"
+        description: "Agent D 执行剧本审计→分镜审计→资产审计→渲染前置门禁。全部S+通过后签发 05_审核/渲染放行令.yaml。所有参数格式/资产完整性/风格约束检查由Agent D负责。"
+        blocK_on_fail: true
+        output_file: "05_审核/渲染放行令.yaml"
+      - gate: "Agent C 渲染放行令检查"
+        description: "Agent C 只检查 05_审核/渲染放行令.yaml 存在且APPROVED。不自行预检——所有预检/审核由Agent D执行。"
+    feedback_loop:  # ⭐ v4: D↔B 反馈闭环
+      - step: "Agent D 第四关门禁不通过"
+        action: "写入 05_审核/渲染门禁_打回反馈.yaml → 通知对应 Agent（资产缺失→B / 参数错误→B / 剧本问题→A）"
+      - step: "Agent B/A 读取反馈"
+        action: "逐项修复 → 重新走完整审计链 → Agent D 重新门禁"
+      - step: "Agent D 全部通过"
+        action: "签发 05_审核/渲染放行令.yaml → Agent C 读取后直接渲染"
+      - step: "循环上限"
+        action: "最多3次往返。3次仍不通过 → 🚨 升级人工介入"
+    ban:
+      manual_scripts: "禁止直接手写脚本绕过标准管线"
+      skip_audit: "禁止跳过 Agent D 审核直接渲染"
+      skip_assets: "禁止跳过 Agent B 资产生成直接渲染"
+      text_only_with_characters: "禁止含角色项目以text_only模式渲染（会导致变脸+卡通化）"
+      agent_c_preflight: "禁止 Agent C 自行执行参数/资产预检（v4新增：预检职责归属Agent D）"
+    exception: "紧急修复需备注原因，事后补审计"
+
+  # ===== ⭐ 音频策略（v2 重构）=====
+  audio_strategy:
+    primary: "generate_audio"
+    description: >
+      Seedance 2.0 原生 generate_audio=true 可同时生成人声+音效+背景音乐。
+      对白放入双引号内即可触发人声配音，无需外挂TTS管线。
+      有声视频均为单声道。
+    prompt_format:
+      dialogue: '"" 包裹台词（Seedance 2.0 真实触发格式），如：男人说："你记住，以后不可以用手指指月亮。"'
+      sfx: '<> 包裹音效，如：<远处传来狗叫声>'
+      music: '() 包裹音乐，如：(背景中播放着快节奏的摇滚乐)'
+      subtitle: '【】 包裹字幕，如：【第一章：启程】'
+    tts_fallback:
+      description: "仅在 Seedance 原生人声不合格时启用（Agent E 执行）"
+      triggers:
+        - "多人场景（>3人）人声混乱"
+        - "音频失真/错乱/噪音"
+        - "关键台词需要特定音色且原生不准确"
+        - "多音字/生僻字发音不准（可用同音字替换规避）"
+      tts_provider: "豆包语音 SeedTTS 2.0"
+      tts_voices:
+        林晚: "zh_female_vv"
+        程屿: "zh_male_ruyayichen"
+        女性配角: "zh_female_meilinvyou"
+        男性配角: "zh_male_m191"
+
+  # ===== ⭐ 提示词工程规范（v2 新增）=====
+  prompt_engineering:
+    advanced_formula:
+      description: "Seedance 2.0 官方推荐公式（8要素）"
+      formula: "精准主体 + 动作细节 + 场景环境 + 光影色调 + 镜头运镜 + 视觉风格 + 画质 + 约束条件"
+    subject_definition:
+      description: "多素材场景中明确主体定义，避免ID漂移和双胞胎"
+      basic: '将图片N中的[核心特征]定义为主体N'
+      multi: '将图片1中的[...]和图片2中的[...]定义为主体1'
+      binding: '每次提到主体使用 主体N@图片N 格式'
+    shot_sequencing:
+      description: "单prompt支持多分镜，按事件发生顺序组织"
+      format: |
+        镜头1: 运镜方式 + 主体动作 + 场景 + 音频
+        镜头2: 运镜方式 + 主体动作 + 场景 + 音频
+        镜头3: ...
+      note: "不建议强制限制每段精确时长（如0-3秒），模型支持不稳定"
+    camerawork:
+      rule: "一个镜头里尽量只指定1种运镜方式，避免同时推拉摇移"
+      terms: "中景、特写、全景、缓慢推镜、平稳横移、固定镜头等"
+    camera_reference:
+      description: "Scene Card 第八维（camera_movement_ref）→ Prompt 映射规则"
+      source_priority: "场景卡第八维 camera_movement_ref > 文字运镜描述"
+      syntax: "@视频N 的运镜方式"  # N为引用素材序号
+      example: "将 @视频1 的运镜方式应用到主体1身上，@视频1 的运镜方式是从右向左的横移镜头"
+      integration: "当场景卡包含 camera_movement_ref 文件路径时，Agent C 将其作为 reference_video 传入，Prompt 中对应 @视频1 的运镜方式 引用"
+      note: "多个运镜参考视频分别对应不同 @视频N 编号，每个运镜引用需明确指定用途"
+    constraints:
+      - "保持无字幕"  # 避免自动生成字幕
+      - "不要生成Logo"
+      - "不要生成水印"
+      - "视频全程禁止出现外形/着装/配饰完全一致的人物"  # 防双胞胎
+      - "禁止生成同款分身/双胞胎效果"
+      - "人物面部和身体比例稳定不变形"
+      - "动作连贯自然，不僵硬，无穿模无卡顿"
+    style_anchoring:  # ⭐ v4新增：风格锚定（替代否定词方案）
+      principle: "Agent A 锁定 visual_style → Agent D 两道关口审核 → Agent B/C 嵌入 style_keywords"
+      reject_negation: "不在Prompt中写'禁止卡通''禁止anime'等否定词。风格靠审核确保，不靠祈祷。"
+      gates:
+        - gate: "分镜审计"
+          check: "每段Prompt包含全部style_keywords"
+          by: "Agent D 第二关"
+        - gate: "渲染门禁"
+          check: "段打包清单中每段包含全部style_keywords"
+          by: "Agent D 第四关 G7"
+    action_description:
+      principles:
+        - "肢体细化+程度量化（缓慢抬手、快速转头、用力蹬地）"
+        - "优先低缓连续小动作（避免大跳/翻滚等高爆发动作）"
+        - "补充动作过渡衔接（借着转身惯性顺势抬手）"
+        - "情绪具象外化（悲伤→低头、肩膀微颤、手指攥紧衣角）"
+
+  # ===== ⭐ 参考素材最佳实践（v2 新增）=====
+  reference_material_best_practices:
+    character:
+      face: "大头照：肩以上无表情，面部占画面2/3，竖版"
+      full_body: "全身正面竖版照片"
+      forbidden: "禁止使用人物三视图/多视图（会导致ID漂移和双胞胎问题）"
+      max_people: "单画面≤4人，超过需分组生成图片后再用"
+    material_config:
+      recommended: "角色图1-2张(面特+全身) + 场景图1张 + 运镜参考视频1段 + 音频1段 = 4-5个素材"
+      warning: "不建议用满素材上限（过多素材导致风格冲突/主体识别模糊）"
+    camera_movement:
+      recommended: "复用 assets/camera_movements/ 预设时加入 @视频N 的运镜方式；无可用预设时由 Agent B 单独生成"
+      format: "mp4, h264, 720p, 5秒/段"
+      source: "优先使用资产库预设（assets/camera_movements/），标注对应运镜类型"
+      prompt_template: "Cinematic [运镜类型] movement, smooth professional motion, abstract bokeh background, no subject, no people"
+    material_reference:
+      rule: "提示词中使用'图片N'、'视频N'、'音频N'指代，素材序号为请求体中的顺序"
+      note: "即便是Asset ID引用，也不能在prompt中使用Asset ID替代素材序号"
+    image_specs:
+      format: "jpeg, png, webp, bmp, tiff, gif, heic, heif"
+      aspect_ratio: "[0.4, 2.5]"
+      resolution: "[300, 6000]px"
+      size: "单张≤30 MB, 请求体≤64 MB"
+      count: "首帧1张 / 首尾帧2张 / 多模态参考1-9张"
+    video_specs:
+      format: "mp4, mov (H.264/AVC, H.265/HEVC + AAC/MP3)"
+      resolution: "480p, 720p, 1080p, 4k"
+      duration: "[2, 15]s, 最多3段, 总时长≤15s"
+      aspect_ratio: "[0.4, 2.5], [300, 6000]px, 总像素[409600, 8295044]"
+      size: "单视频≤200 MB"
+      fps: "[24, 60]"
+    audio_specs:
+      format: "wav, mp3"
+      duration: "[2, 15]s, 最多3段, 总时长≤15s"
+      size: "单音频≤15 MB"
+      note: "不可单独输入音频，应至少包含1个参考视频或图片"
+
+  # ===== ⭐ 视频编辑/延长能力（v2 新增）=====
+  video_editing:
+    capabilities:
+      add_elements: "清晰描述元素特征+出现时机+出现位置"
+      remove_elements: "点明需删除的元素，强调保留的元素"
+      modify_elements: "严格编辑视频N，将原特征修改为新特征"
+    prompt_formats:
+      add: '在视频1的台面上添加炸鸡、披萨等小吃'
+      remove: '清除视频1桌面上的工具，保持整洁干净'
+      modify: '将视频1中的香水替换成图片1中的面霜，动作和运镜不变'
+
+  video_extension:
+    capabilities:
+      forward: "向后延长视频N，生成后续内容"
+      backward: "向前延长视频N，生成前置内容"
+      stitch: "视频1 + 过渡画面 + 接 视频2（最多3段视频输入，总时长≤15s）"
+    note: "模型自动截取衔接部分，原有片段不会重复生成"
+    quality_tip: >
+      多次续写可能导致画质劣化。缓解方案：
+      1. 原始视频转白模后再续写
+      2. 优先用高清图片参考
+      3. 控制续写次数
+    stitch_jump_fix:
+      description: "延长视频衔接处跳变的后期修复方案"
+      steps:
+        - "前一段视频末尾删减6帧"
+        - "后一段视频开头删减1帧"
+        - "对所有拼接点重复操作"
+      alt: "续写时以转场切镜时刻结尾，下段以新场景起始"
+
+  # ===== ⭐ 私域资产库集成（v2 新增）=====
+  asset_library:
+    description: "上传自有的虚拟人像素材至方舟私域素材库，生成时直接以asset://ID引用"
+    workflow:
+      - "CreateAssetGroup → 创建素材组合"
+      - "CreateAsset → 上传素材（异步，需等Active状态）"
+      - "GetAsset → 轮询检查状态（Processing→Active/Failed）"
+      - "使用 asset://<ASSET_ID> 进行视频生成"
+    isolation: "素材库按Project隔离，素材需与推理接入点同项目"
+    auth: "素材管理API使用Access Key鉴权（不同于视频生成的API Key）"
+    limits:
+      CreateAssetGroup: "10 QPS"
+      CreateAsset: "根据权益包不同"
+      GetAsset: "100 QPS"
+      ListAssets: "10 QPS"
+    prompt_note: "提示词中仍需用'图片N'指代，不能直接用Asset ID"
+
+  # ===== ⭐ 数据订阅（v2 新增）=====
+  data_subscription:
+    description: "自动将Seedance产物转存到自有TOS桶，避免24h URL过期"
+    benefits:
+      - "免去手动下载"
+      - "产物永久保留在自有TOS"
+      - "近实时复制（P99延迟分钟级）"
+      - "≥99.9%可靠性保障"
+    supported_regions: "华北2(北京) / 华东2(上海) / 华南1(广州)"
+    supported_models:
+      - "doubao-seedance-2-0"
+      - "doubao-seedance-2-0-fast"
+      - "doubao-seedance-2-0-mini"
+    cost: "功能本身免费，仅需支付TOS存储和请求费用（入向流量和Put请求当前免费）"
+    note: "仅处理规则创建后新产生的数据，不处理历史数据"
+    steps: "见03_火山方舟通用/创建数据订阅规则.md"
+
+  # ===== ⭐ 常见问题预案（v2 新增）=====
+  common_issues:
+    id_drift:
+      symptom: "生成的角色形象与参考图不一致，或中途'换脸'"
+      root_cause: "人脸参考图有效性不足（混用多图、人脸占比过小）"
+      solution:
+        - "准备独立人脸特写图（大头照，肩以上，面部占2/3，无表情）"
+        - "提示词中明确定义：主体1面部参考图片1（大头照），妆造参考图片2（全身照）"
+        - "重要素材放提示词靠前位置"
+        - "禁止使用人物多视图/三视图"
+    twin_problem:
+      symptom: "同一画面中出现两个完全相同的人物"
+      root_cause: "人物定义不清晰 / 使用三视图导致模型识别混淆"
+      solution:
+        - "清晰定义每个角色与参考图对应关系"
+        - "添加全局约束：禁止出现外形/着装/配饰完全一致的人物"
+        - "人物参考用单人独立照片，不用三视图"
+        - "精简提示词，不要直接倒入完整剧本"
+    unwanted_subtitles:
+      symptom: "未要求生成字幕但视频中出现字幕"
+      solution:
+        - "加入约束词：'保持无字幕'、'避免生成任何文字或字幕'"
+        - "参考素材中有文字的先去文字再使用"
+        - "优先选择横屏尺寸（横屏生成字幕概率远低于竖屏）"
+    unwanted_logo:
+      symptom: "视频中出现其他平台Logo/水印"
+      solution:
+        - "加入约束词：'不要生成水印'、'不要生成Logo'"
+    style_drift:
+      symptom: "期望2D/3D动漫风格但漂移成真人写实风格"
+      solution:
+        - "提示词中明确风格约束：'2D日漫风格''3D国风漫画'"
+        - "将参考图先转为目标风格再用于生视频"
+    extension_jump:
+      symptom: "延长视频拼接处画面跳动或内容回退"
+      solution:
+        - "前一段末尾删减6帧 + 后一段开头删减1帧"
+        - "续写时以转场切镜时刻结尾，下段以新场景起始"
+    quality_degradation:
+      symptom: "多次续写后画质劣化，人脸区域出现斑驳色块"
+      solution:
+        - "原始视频转白模后再续写"
+        - "优先用高清参考图片"
+        - "控制续写次数"
+    audio_mismatch:
+      symptom: "参考音频音色与生成视频的音色明显偏差"
+      solution:
+        - "提示词中补充细粒度音色特征描述"
+        - "保持台词风格与参考音频语气相近"
+    chinese_pronunciation:
+      symptom: "多音字/生僻字/形近字发音不准"
+      solution:
+        - "替换为发音一致的常用同音字（如'螭龙山'→'吃龙山'）"
+        - "仅优化手段，非完全保证"
+    too_many_characters:
+      symptom: "参考人物超过4人时模型稳定性下降"
+      solution:
+        - "分步生成图片（每组≤4人）→ 用分组图片作为参考生成视频"
+
+  # ===== ⭐ Seedance 2.0 技术参数速查 =====
+  seedance_specs:
+    model_ids:
+      standard: "doubao-seedance-2-0-260128"
+      fast: "doubao-seedance-2-0-fast-260128"
+      mini: "doubao-seedance-2-0-mini-260615"
+    base_url: "https://ark.cn-beijing.volces.com/api/v3"
+    endpoints:
+      create: "POST /contents/generations/tasks"
+      get: "GET /contents/generations/tasks/{id}"
+      list: "GET /contents/generations/tasks?page_num=&page_size=&filter.status="
+      delete: "DELETE /contents/generations/tasks/{id}"
+    auth:
+      primary: "API Key (Bearer token)"
+      enterprise: "Access Key (HMAC-SHA256签名)"
+    content_constraints:  # ⭐ 基于12份文档精读新增
+      request_body_max: "64 MB（含所有图片/音频/视频编码）"
+      text_max: "中文≤500字，英文≤1000词"
+      image_max: "单张≤30MB，1~9张(reference_image)，格式:jpeg/png/webp/bmp/tiff/gif/heic/heif"
+      video_max: "单段≤200MB，最多3段总≤15s，格式:mp4/mov，不支持Base64"
+      audio_max: "单段≤15MB，最多3段总≤15s，格式:wav/mp3，支持URL/Base64/asset"
+      audio_must_combine: "⚠️ 音频不可单独输入，至少配合1个参考视频或图片"
+      first_frame_mutual_exclusion: "⚠️ 首帧/首尾帧/多模态参考为3种互斥场景，不可混用"
+      image_cropping: "ratio与图片实际宽高比不一致时API自动居中裁剪，建议保持一致"
+      edit_extend_prompt: "编辑/延长模式提示词用'编辑视频1'/'延长视频1'，不用'参考'前缀"
+      video_no_base64: "视频仅支持公网URL或asset://ID，不支持Base64编码"
+      audio_base64_ok: "音频支持Base64编码传入(data:audio/mp3;base64,...)"
+      delete_restriction: "运行中(running)和已取消(cancelled)状态不支持DELETE"
+      min_token_billing: "2.0系列存在最低token用量限制，按最低值计费"
+      text_generation: "Seedance 2.0支持生成常用文字(广告语/字幕/气泡台词)"
+    resolution:
+      "480p": "2.0 / Fast / Mini 均支持"
+      "720p": "2.0 / Fast / Mini 均支持，2.0默认值"
+      "1080p": "仅2.0支持（Fast/Mini不支持）"
+      "4k": "仅2.0支持，10bit位深，H.265编码"
+    ratio_values:
+      - "16:9"
+      - "4:3"
+      - "1:1"
+      - "3:4"
+      - "9:16"
+      - "21:9"
+      - "adaptive"
+    duration:
+      range: "4~15秒整数或-1（自动决定）"
+      default: 5
+      note: "⚠️ 单位是秒，不是毫秒！"
+    generate_audio:
+      default: true
+      description: "生成人声+音效+BGM同步音频"
+    return_last_frame:
+      default: false
+      description: "返回尾帧PNG用于段间链式衔接"
+    watermark:
+      default: true
+      values: "true(含水印) / false(无水印)"
+    tools:
+      - type: "web_search"
+        description: "联网搜索工具"
+    priority: "0~9，越大优先级越高"
+    callback_url: "任务状态回调URL"
+    safety_identifier: "终端用户唯一标识，≤64字符"
+    task_retention: "任务记录保留7天"
+    video_url_expiry: "视频URL有效期24小时"
+    rate_limits:
+      personal:
+        standard_rpm: 180
+        "4k_rpm": 15
+        standard_concurrency: 3
+        "4k_concurrency": 1
+      enterprise:
+        standard_rpm: 600
+        "4k_rpm": 15
+        standard_concurrency: 10
+        "4k_concurrency": 1
+
+  # ===== ⭐ Seedance 2.0 定价（v2 新增，已迁移到独立 SSOT）=====
+  pricing:
+    reference_knowledge: "skills/knowledge/成本预估模板.yaml"
+    note: "07/09 19:46 ListBill 实测锁定价：含视频输入 28元/百万tokens | 纯生成 46元/百万tokens。原 pricing 完整内容（tiers/reference_tokens/cost_formula/notes）迁移至成本预估模板.yaml，此处仅保留引用避免重复。"
+
+  # ===== ⭐ 错误码速查 =====
+  error_codes:
+    auth:
+      AuthenticationError: "API Key或AK/SK校验失败"
+    billing:
+      AccountOverdueError: "账号欠费（余额<0）"
+      ModelNotOpen: "未开通该模型服务"
+      OperationDenied_ServiceNotOpen: "模型服务不可用"
+      OperationDenied_ServiceOverdue: "账单逾期"
+    content:
+      SensitiveContentDetected: "输入包含敏感信息"
+      InputTextSensitiveContentDetected: "输入文本敏感"
+      InputImageSensitiveContentDetected: "输入图片敏感"
+      OutputVideoSensitiveContentDetected: "输出视频敏感"
+      PrivacyInformation: "输入含真人面部信息"
+    rate_limit:
+      RateLimitExceeded: "RPM超限"
+      QuotaExceeded: "额度耗尽"
+      RequestBurstTooFast: "请求激增触发保护"
+      ServerOverloaded: "服务资源紧张"
+    parameters:
+      MissingParameter: "缺少必要参数"
+      InvalidParameter: "参数非法"
+
+  # ===== ⭐ v4.0 新增：运镜参考视频资产（camera_movement_ref）=====
+  camera_movement_assets:
+    type_name: "camera_movement_ref"
+    description: "运镜参考视频，作为场景卡第八维引用，供 Seedance 2.0 API 以 @视频N 的运镜方式 语法调用"
+    file_conventions:
+      directory: "assets/camera_movements/"
+      format: "mp4"
+      duration: "5秒/段"
+      resolution: "720p"
+      codec: "H.264"
+      audio: "单声道（即使无音频）"
+      naming: "{camera_type_en}_{n}.mp4"
+      examples:
+        - "dolly_in_01.mp4"
+        - "track_01.mp4"
+        - "pan_01.mp4"
+        - "handheld_01.mp4"
+    metadata_fields:
+      camera_type: "运镜中文名（如推、拉、摇、移）"
+      camera_en: "运镜英文名（如 dolly_in、track、pan）"
+      mood: "情绪标签（如接近感、审视、紧张）"
+      use_case: "适用场景（如人物情绪变化、场景导览）"
+      prompt: "该运镜的 Seedance 2.0 生成 prompt"
+      file_path: "assets/camera_movements/{type}_{n}.mp4"
+      duration: "5.0"
+      fps: "24"
+      resolution: "1280x720"
+      generated_at: "ISO8601 时间戳"
+    # ===== 15 种运镜定义已迁移至独立 SSOT 运镜15项.yaml（07/09 去重）=====
+    supported_types:
+      reference_knowledge: "skills/knowledge/运镜15项.yaml"
+      note: "07/09 去重。原 supported_types 15 种运镜详细定义（camera_type/camera_en/mood/use_case/prompt）已统一到运镜15项.yaml，此处仅保留引用。Agent B 生成运镜参考视频时通过 generate_camera_movement_ref() 动态拼接 prompt（Cinematic {en} movement + mood），不依赖本字段。"
+    index_file:
+      path: "assets/camera_movements/catalog.yaml"
+      description: "运镜预设目录索引，记录每一段参考视频的元数据"
+    generation:
+      default_model: "doubao-seedance-2-0-260128"
+      default_duration: 5
+      cost_estimate: "≈¥0.5/段（46元/百万token）"
+      batch_cost: "15段 × ¥0.5 ≈ ¥7.5（一次性投入，可跨项目复用）"
+      note: "由 Agent B 在项目初期一次性生成，或复用已有预设"
+
+  # ===== ⭐ v4.0 新增：场景卡八维规范 =====
+  scene_card_spec:
+    description: "场景卡由七维升级为八维，新增第八维 camera_movement_ref"
+    dimensions:
+      - dimension: 1
+        name: "构图"
+        type: "description"
+        description: "画面元素的位置、比例、视觉引导"
+        required: true
+      - dimension: 2
+        name: "光位"
+        type: "description"
+        description: "主光/辅光/背光/环境光的方向与强度"
+        required: true
+      - dimension: 3
+        name: "色调"
+        type: "description"
+        description: "色彩基调、色温、饱和度方案"
+        required: true
+      - dimension: 4
+        name: "焦段"
+        type: "description"
+        description: "镜头焦距选择（广角/标准/长焦/微距）"
+        required: true
+      - dimension: 5
+        name: "视角"
+        type: "description"
+        description: "镜头视点（主观/客观/上帝视角/POV）"
+        required: true
+      - dimension: 6
+        name: "景深"
+        type: "description"
+        description: "画面纵深层次、虚化程度"
+        required: true
+      - dimension: 7
+        name: "运镜描述"
+        type: "description"
+        description: "镜头运动方式的文字描述"
+        required: true
+      - dimension: 8
+        name: "camera_movement_ref"
+        type: "file_reference"
+        description: "运镜参考视频文件路径，引用 assets/camera_movements/ 下的预设或 Agent B 新生成的参考视频"
+        required: false  # 有预设时推荐使用；无预设时退回到第7维文字描述
+        format: "assets/camera_movements/{type}_{n}.mp4"
+        fallback: "当第8维为空时，渲染 Agent C 使用第7维文字描述控制运镜"
+
+  # ===== ⭐ v4.0 新增：Agent B 升级规范 =====
+  agent_b_upgrade:
+    description: "Agent B（故事板资产引擎）的运镜参考视频能力扩展"
+    capabilities:
+      select_preset:
+        description: "从 assets/camera_movements/catalog.yaml 中选择匹配场景情绪/类型的运镜预设"
+        output: "场景卡第八维 camera_movement_ref 填入对应文件路径"
+        condition: "catalog.yaml 中存在匹配项"
+      generate_new:
+        description: "当无匹配预设时，调用 Seedance 2.0 API 新生成运镜参考视频"
+        model: "doubao-seedance-2-0-260128"
+        duration: 5
+        resolution: "720p"
+        prompt_template: "Cinematic [运镜类型] movement, smooth professional motion, abstract bokeh background, no subject, no people"
+        output_dir: "03_资产/camera_movements/"
+        metadata: "生成对应 camera_movement_ref.json 元数据文件"
+      catalog_output:
+        description: "新生成的运镜参考视频同步注册到 assets/camera_movements/catalog.yaml"
+    output_files:
+      - "03_资产/camera_movements/{type}_{n}.mp4"
+      - "03_资产/camera_movements/{type}_{n}_metadata.json"
+    integration_note: "Agent B 在场景卡生成阶段完成运镜选择/生成，不新设独立阶段"
+
+  # ===== ⭐ v4.0 新增：Agent C 升级规范 =====
+  agent_c_upgrade:
+    description: "Agent C（渲染引擎）的运镜参考视频引用扩展"
+    prompt_syntax:
+      description: "当 Scene Card 包含 camera_movement_ref 时，Agent C 在 API 调用中加入参考视频"
+      api_integration:
+        - step: "将 camera_movement_ref 文件路径作为 reference_video 传入 API 请求体"
+        - step: "在 prompt 中使用 @视频N 的运镜方式 语法引用该视频"
+        - step: "多个运镜参考视频分别对应不同的 @视频N 编号"
+      priority:
+        1: "场景卡第八维 camera_movement_ref 文件"
+        2: "场景卡第七维运镜文字描述"
+      constraint: "当第八维有值时强制使用其文件引用，不得跳过"
+    shot_level_prompt_template:
+      example: |
+        "将 @视频1 的运镜方式应用到 [主体1] 身上，[主体1] [动作描述]，[场景环境]。"
+        "结合 @视频1 的横移运镜和 @视频2 的推镜变焦，展示 [主体1] 从 [位置A] 到 [位置B] 的行走过程。"
+    edge_cases:
+      - condition: "camera_movement_ref 文件路径不存在或已过期"
+        action: "降级使用第7维文字运镜描述，记录降级日志"
+      - condition: "多个 camera_movement_ref 超出 reference_video 上限（最多3段，总时长≤15s）"
+        action: "优先使用最匹配场景情绪的前3段，剩余降级到文字描述"
+      - condition: "camera_movement_ref 视频时长超过5秒"
+        action: "Agent C 裁剪至5秒后再引用"
+    backward_compatibility:
+      description: "现有 v3.0 项目无需修改。场景卡无第8维时自动使用第7维文字运镜描述。Agent C 加载场景卡时检查 camera_movement_ref 是否存在，存在则调用新逻辑，不存在则走原有逻辑。"
+
+  # ===== ⭐ v4.0 新增：段间状态锁定（Phase 7 反例，已迁移到独立 SOP）=====
+  segment_state_lock:
+    reference_knowledge: "skills/knowledge/段间状态锁定SOP.yaml"
+    note: "原 segment_state_lock 完整内容（流程图/sidecar 格式/prompt 模板/冲突检测/Python API/实施清单）迁移至段间状态锁定SOP.yaml，此处仅保留引用避免重复。Phase 7 反例：5段渲染段1陈影脱外套露左臂绷带→段2-5外套穿回/绷带左右漂移/道具状态不连贯。"

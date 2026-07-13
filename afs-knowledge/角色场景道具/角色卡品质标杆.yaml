@@ -1,0 +1,126 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 角色卡品质标杆 — 行业标准级别参考
+# 来源：影视角色设定图（写实+CGI混合风格）
+# 用途：Agent B 角色卡产出的 quality benchmark
+# 纳入日期：2026-07-06
+
+reference_image: references/角色卡品质标杆_杨岳.jpg
+
+## 角色卡十维结构（v6：+投放合规维度，2026-07-12）
+# 原9维 + 第10维：投放合规（参考 skills/knowledge/平台审核规则.yaml）
+
+角色信息:
+  姓名: 杨岳
+  职业: 火场调查员（推定）
+  档案编号: 展示在画面中
+  时代背景: 疑似清末民初
+
+视觉维度:
+  - id: v1_参考图
+    name: 参考图格式 ⚠️ v2更新 (12份文档：禁止三视图)
+    description: 人脸特写(肩以上/无表情/面部占2/3) + 全身正面(全身/竖版) — 两张独立图
+    required: true
+    why: "三视图/多视图会导致Seedance ID漂移和双胞胎问题"
+    
+  - id: v2_六表情
+    name: 六格表情特写
+    description: 不同情绪状态的面部特写（如：火场窒息强忍、紧张、专注、痛苦、坚毅、平静）
+    required: true
+    
+  - id: v3_动作锚点
+    name: 动作锚点
+    description: 角色在场景中的标志性动作（蹲身探查残骸）
+    required: true
+    
+  - id: v4_服化包
+    name: 服装化妆道具
+    description: 全身服装、发型、妆容、配饰的详细展示
+    required: true
+    
+  - id: v5_道具特写
+    name: 道具特写
+    description: 角色专属道具的独立细节展示（工具腰带、手套、调查工具等）
+    required: true
+    
+  - id: v6_场景氛围
+    name: 场景氛围
+    description: 角色在典型环境中的氛围镜头（火场橙黄暖光、烟雾残骸）
+    required: true
+    
+  - id: v7_配色方案
+    name: 配色方案
+    description: 主色调土黄灰褐 + 火焰暖色点缀 + 明暗强对比
+    required: true
+    
+  - id: v8_光影设定
+    name: 光影设定
+    description: 光源方向（火场逆光/侧光）、色温（橙黄暖调）、明暗比
+    required: true
+    
+  - id: v9_风格标注
+    name: 风格标注
+    description: 写实+CGI混合、影视叙事光影、PBR材质
+    required: true
+    
+  - id: v10_投放合规
+    name: 投放合规 ⭐ v6 新增（2026-07-12 平台预审MVP）
+    description: 年龄合规（≥18岁/未成年人场景合规）+ 服饰合规（裸露度/标识/仿军警）+ 形象合规（不侵犯肖像权/不涉及敏感人物/不歧视性刻板印象）
+    required: true
+    reference: skills/knowledge/平台审核规则.yaml → 角色卡_投放合规
+
+## 布局规范
+
+layout:
+  type: 拼贴式
+  grid: 非对称多面板
+  left_panel: 人脸特写 + 全身正面 + 角色基础信息 ⚠️ v2更新 (非三视图)
+  center_panel: 场景氛围大景别（最大面积）
+  right_panel: 表情矩阵 + 道具细节
+  composition: 视觉引导从左→中→右，信息密度递减
+
+## 风格要求
+
+style:
+  category: 写实CGI
+  lighting: 电影叙事光影（dramatic cinematic lighting）
+  material: PBR材质渲染
+  atmosphere: 体积雾/烟
+  quality: 超细节/8K/AAA级
+  color_palette: 土黄灰褐基调 + 暖色点缀 + 明暗强对比
+
+## ⚠️ 角色一致性强制字段（Phase 7 反例修复 — 2026-07-09 追加）
+
+角色卡九维**必须包含**以下字段，作为角色一致性锚点：
+
+```yaml
+人种: "Chinese / East Asian"              # 必填：Chinese/Asian/Caucasian/...
+皮肤: "东亚人种偏黄暖调"                    # 必填：皮肤色调描述
+服装锚点:
+  颜色: "黑色战术外套"
+  款式: "立领拉链"
+  材质: "高密度尼龙布料"
+伤疤/装饰锚点:                              # 必填：精确到位置/形状
+  - 位置: "右眉上方"
+    描述: "垂直刀疤，长约3cm"
+  - 位置: "左臂"
+    描述: "旧伤绷带，边缘微渗血"
+```
+
+**字段意义**：这些锚点确保（1）人脸→全身保持一致的服装/伤疤特征；（2）关键帧/分镜 prompt 可继承相同描述，不漂移。
+
+## 对Agent B的要求
+
+agent_b_requirements:
+  - 角色卡必须包含至少 v1-v6 六个核心维度
+  - ⭐ v6: v10_投放合规 为硬指标（年龄/服饰/形象三项全部通过），不通过 = Agent D D-Stage-3.5 打回
+  - 布局采用拼贴式，非简单并列
+  - 必须有场景氛围镜头（不只是白底棚拍）
+  - 表情需对应剧情关键情绪节点
+  - 道具需独立特写（不是嵌在角色身上）
+  - 统一母提示词贯穿全部维度
+  - ⚠️ v2 追加：角色卡**必须**含人种字段（Chinese/Asian/...）
+  - ⚠️ v2 追加：角色卡**必须**含服装锚点（颜色/款式/材质）
+  - ⚠️ v2 追加：角色卡**必须**含伤疤/装饰锚点（位置/形状/描述）
+  - ⚠️ v2 追加：人脸图→全身图必须 i2i 模式，prompt 首位必含 "Chinese / East Asian"
+
+# → 详细参考：剧本素养库.yaml → 第5章（亚文本→行为转化）

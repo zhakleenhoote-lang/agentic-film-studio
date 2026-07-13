@@ -1,0 +1,70 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# 分镜表品质标杆 — 行业标准级别参考
+# 来源：影视分镜表（雨夜刑房场景，9镜）
+# 用途：Agent B 分镜产出的 quality benchmark
+# 纳入日期：2026-07-06
+
+reference_image: references/分镜表品质标杆_雨夜刑房.jpg
+
+## 分镜表结构
+
+scene_info:
+  场景: 雨夜审计司刑房
+  时长: 8.9秒
+  镜数: 9镜
+
+## 每镜必含参数（五维）
+
+required_per_shot:
+  - id: s1_景别
+    name: 景别标注
+    options: [ECU, CU, MCU, MS, MLS, LS, ELS, WS, EWS]
+    required: true
+    
+  - id: s2_焦段
+    name: 镜头焦段
+    format: "焦距 mm + 光圈值（如 85mm f2.0）"
+    required: true
+    
+  - id: s3_ISO
+    name: 感光度
+    format: "ISO + 数值（如 ISO 640）"
+    required: true
+    
+  - id: s4_色温
+    name: 色温
+    format: "数值K（如 5400K）"
+    note: 跨镜头色温渐变需标注起止值（如 5400K→2600K）
+    required: true
+    
+  - id: s5_运镜
+    name: 运镜方式
+    options: [Static, DollyIn, DollyOut, Pan, Tilt, Truck, Crane, Handheld, Steadicam]
+    required: true
+
+## 灯光标注
+
+lighting_required:
+  - Key light 类型/方向/强度
+  - Rim light / Back light（如适用）
+  - 环境光源标注（如烛光/油灯/窗户/霓虹）
+  - 色温变化方向（如暖→冷）
+
+## 生产元数据
+
+production_metadata:
+  - Blocking（走位调度）
+  - 道具清单
+  - 安全注意事项
+  - Scene slogan / 标语
+
+## 对Agent B的要求
+
+agent_b_requirements:
+  - 分镜表每镜必须包含景别+焦段+ISO+色温+运镜五维
+  - 灯光方案标注 Key/Rim/环境光源
+  - 跨镜头色温/曝光变化需标注渐变方向
+  - 生产元数据（Blocking/道具/安全）不可省略
+  - 表格布局：左列缩略图 + 右列参数/描述
+
+# → 详细参考：分镜素养库.yaml → 第9章（分镜表字段规范）

@@ -1,0 +1,14 @@
+{
+  "id": "ai-director-discipline",
+  "name": "AI Director Discipline",
+  "description": "Enforces 2 red lines (7+8) for AI Director workflow: auto-injects project status summary before LLM call, blocks SSOT file edits without approval",
+  "activation": {
+    "onStartup": true
+  },
+  "enabledByDefault": true,
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

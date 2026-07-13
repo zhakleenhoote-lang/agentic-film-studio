@@ -1,0 +1,91 @@
+# LICENSE: MIT (AI导演工作室). Adapted from Agentic Film Studio pipeline.
+# Timeline 驱动模板 v1.0
+# Agent C 渲染阶段使用
+# 设计原则：时间轴是唯一事实源(SSOT)，分镜/段打包/音频都是它的视图
+
+timeline_drive:
+  version: "1.0"
+  design_philosophy: |
+    分镜驱动 → Timeline驱动 的核心转变：
+    - 旧：分镜表告诉Agent C"逐镜渲染什么"
+    - 新：Timeline告诉Agent C"每分钟发生什么"，分镜/音频/字幕/特效同步对齐
+    - 分镜表仍是Agent B的输出，但Agent C渲染时以Timeline为SSOT
+    
+  schema:
+    project: "{项目代号}"
+    episode: "EP01"
+    total_duration: 150  # 秒
+    fps: 24
+    
+    tracks:
+      - id: "video_main"
+        type: "video"
+        description: "主视频轨道"
+        clips:
+          - id: "seg_01"
+            time_in: 0
+            time_out: 15
+            scene: "場1"
+            shots: [01, 02, 03]
+            render_mode: "reference_image"
+            reference_assets: ["C-001_程见微_九维.png", "S-001_刑房_氛围.png"]
+            next_segment_transition: "last_frame_inherit"
+          
+          - id: "seg_02"
+            time_in: 15
+            time_out: 30
+            scene: "場1"
+            shots: [04, 05]
+            render_mode: "last_frame_chain"
+            inherit_from: "seg_01"
+            reference_assets: ["C-001_程见微_九维.png", "S-001_刑房_氛围.png"]
+      
+      - id: "audio_dialogue"
+        type: "audio"
+        description: "对白音轨"
+        clips:
+          - id: "dial_01"
+            time_in: 3
+            time_out: 8
+            character: "沈砚"
+            text: "\"最后一次。谁指使你烧账本的？\""
+            tts_voice: "zh_male_ruyayichen"
+            tts_file: "tts_dial_01.mp3"
+          
+          - id: "dial_02"
+            time_in: 10
+            time_out: 13
+            character: "程见微"
+            text: "\"纸能烧，账赖不掉。\""
+            tts_voice: "zh_female_vv"
+            tts_file: "tts_dial_02.mp3"
+      
+      - id: "audio_bgm"
+        type: "audio"
+        description: "背景音乐/环境音轨"
+        clips: []
+      
+      - id: "subtitles"
+        type: "subtitle"
+        description: "字幕轨道"
+        clips:
+          - id: "sub_01"
+            time_in: 3
+            time_out: 8
+            text: "沈砚：最后一次。谁指使你烧账本的？"
+          - id: "sub_02"
+            time_in: 10
+            time_out: 13
+            text: "程见微：纸能烧，账赖不掉。"
+
+  integration:
+    with_segment_pack:
+      description: "Timeline是SSOT，段打包清单从Timeline生成（而非手动编写）"
+      flow: "Timeline → 提取各track的视频clips → 按scene分组 → 生成段打包清单"
+    
+    with_storyboard:
+      description: "分镜表仍由Agent B产出，但Timeline中引用其镜头编号"
+      flow: "分镜表(Agent B) → Timeline构建时引用 → Agent C按Timeline执行"
+    
+    with_cost_estimation:
+      description: "有了Timeline，预估更精确——不再按'总时长'估算，而是按每段时长精确计算"
