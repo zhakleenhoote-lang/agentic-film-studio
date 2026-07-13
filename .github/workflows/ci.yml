@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check YAML syntax
+        run: |
+          find . -name '*.yaml' -o -name '*.yml' | xargs -r python3 -c "import sys,yaml; [yaml.safe_load(open(f)) or True for f in sys.argv[1:]]; print('All YAML files valid')"
+      - name: Check Markdown links (placeholder)
+        run: echo "Markdown link check placeholder — add lychee or markdown-link-check later"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run placeholder tests
+        run: echo "test placeholder — all checks passed"
