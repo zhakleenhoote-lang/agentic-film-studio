@@ -8,13 +8,13 @@ Seedance 2.0:
   端点ID: ep-20260705101905-6sz4b  # ARK端点，调用时用此ID替代模型ID
   API端点: "POST /api/v3/contents/generations/tasks"  # 任务式异步
   查询端点: "GET /api/v3/contents/generations/tasks/{task_id}"
-  时长: [4, 15] 或 -1(自动)
+  时长: "[4, 15] 或 -1(自动)"
   分辨率: [480p, 720p, 1080p, 4k]  # 4k仅2.0支持，10bit H.265编码
   比例: [16:9, 4:3, 1:1, 3:4, 9:16, 21:9, adaptive]
-  随机种子: [-1, 2^32-1]，默认 -1（随机）
-  水印: 默认 true（需显式设 false）
-  尾帧返回: return_last_frame: true 获取最后一帧
-  任务超时: execution_expires_after 默认172800(48h)，范围[3600, 259200]
+  随机种子: "[-1, 2^32-1]，默认 -1（随机）"
+  水印: "默认 true（需显式设 false）"
+  尾帧返回: "return_last_frame: true 获取最后一帧"
+  任务超时: "execution_expires_after 默认172800(48h)，范围[3600, 259200]"
   回调: callback_url 可选，状态变化时POST通知
   优先级: priority 0~9，仅影响排队顺序
   联网搜索: tools.web_search，模型自主判断
@@ -46,10 +46,10 @@ Seedance 2.0:
       说明: 不填role时默认为首帧模式
     first_frame+last_frame:
       用途: 图生视频-首尾帧
-      张数: 2张（分别标注 role: first_frame 和 role: last_frame）
+      张数: "2张（分别标注 role: first_frame 和 role: last_frame）"
     reference_image:
       用途: 参考图（风格/构图/色调/角色外观参考）
-      张数: 1～9张（每张必填 role: reference_image）
+      张数: "1～9张（每张必填 role: reference_image）"
       说明: |
         ⭐ CGI写实角色卡九维图、场景氛围图、道具卡六维图
         均可以 role: reference_image 传入
@@ -70,11 +70,11 @@ Seedance 2.0:
   视频约束:
     格式: mp4/mov
     分辨率: 480p/720p/1080p/4k
-    时长: 单段[2,15]s，最多3段，总≤15s
-    宽高比: [0.4, 2.5]，宽或高[300, 6000]
+    时长: "单段[2,15]s，最多3段，总≤15s"
+    宽高比: "[0.4, 2.5]，宽或高[300, 6000]"
     像素: [409600, 8295044]
     大小: 单视频 ≤ 200MB
-    帧率: [24, 60] FPS
+    帧率: "[24, 60] FPS"
     用途: |
       段间衔接：段1生成后的视频
       → 作为段2的 reference_video（人物一致性）
@@ -88,7 +88,7 @@ Seedance 2.0:
     role: reference_audio
   音频约束:
     格式: wav/mp3
-    时长: 单段[2,15]s，最多3段，总≤15s
+    时长: "单段[2,15]s，最多3段，总≤15s"
     大小: 单音频 ≤ 15MB
     请求体: ≤ 64MB
     限制: 音频不可单独输入，至少配合1个参考视频或图片
@@ -98,7 +98,7 @@ Seedance 2.0:
 
   # ---------- generate_audio ----------
   原生音频:
-    参数: generate_audio: true（默认值 true）
+    参数: "generate_audio: true（默认值 true）"
     官方说明: |
       模型会基于文本提示词与视觉内容，自动生成与之匹配的
       人声、音效及背景音乐。建议将对话部分置于双引号内，
@@ -159,30 +159,31 @@ Seedance 2.0:
     Seedance 原生人声不稳定时兜底
     （如多人场景声音混乱、音频失真时）
 
-## 管线技术合规检查（更新）
+附录: |
+  ## 管线技术合规检查（更新）
 
-Agent B 产出分镜表后检查：
-1. 角色卡风格是否为 CGI/手绘/3D？
-   - 是 → reference_image 模式可用，角色卡图直接喂 Seedance ✅
-   - 不是（真人照片）→ 仅纯文本 mode，角色卡仅用于文字描述 ⚠️
-2. 每段打包的 content 是否 ≤ 9 张 reference_image？
-3. 是否有需要段间衔接的连续镜头？
-   - 有 → 设置 return_last_frame: true 并使用尾帧
-4. 对白是否已标记为独立 TTS 管线？
+  Agent B 产出分镜表后检查：
+  1. 角色卡风格是否为 CGI/手绘/3D？
+     - 是 → reference_image 模式可用，角色卡图直接喂 Seedance ✅
+     - 不是（真人照片）→ 仅纯文本 mode，角色卡仅用于文字描述 ⚠️
+  2. 每段打包的 content 是否 ≤ 9 张 reference_image？
+  3. 是否有需要段间衔接的连续镜头？
+     - 有 → 设置 return_last_frame: true 并使用尾帧
+  4. 对白是否已标记为独立 TTS 管线？
 
-## 段打包规则
+  ## 段打包规则
 
-镜头组织: 按 ≤ 15 秒打包成段（非逐镜调用）
-段内: text + image_url(角色卡+场景+道具 1~9张) + audio_url(可选)
-段间: 多模态参考模式 + reference_video（上一段视频）
-  ⚠️ 不可混用 first_frame + reference_image（首帧/多模态参考互斥）
-  尾帧图作为额外 reference_image 传入，非 first_frame role
-  ⚠️ 编辑/延长模式提示词不用"参考"前缀
-对白: generate_audio=true 原生生成，TTS 兜底
+  镜头组织: 按 ≤ 15 秒打包成段（非逐镜调用）
+  段内: text + image_url(角色卡+场景+道具 1~9张) + audio_url(可选)
+  段间: 多模态参考模式 + reference_video（上一段视频）
+    ⚠️ 不可混用 first_frame + reference_image（首帧/多模态参考互斥）
+    尾帧图作为额外 reference_image 传入，非 first_frame role
+    ⚠️ 编辑/延长模式提示词不用"参考"前缀
+  对白: generate_audio=true 原生生成，TTS 兜底
 
-## 图片裁剪规则（API自动处理）
+  ## 图片裁剪规则（API自动处理）
 
-当 ratio 参数与上传图片实际宽高比不一致时，API自动居中裁剪：
-- 图片"太高" → 以宽度为基准，上下裁剪
-- 图片"太宽" → 以高度为基准，左右裁剪
-- 建议: 参考图宽高比尽量接近目标ratio，避免关键内容被切
+  当 ratio 参数与上传图片实际宽高比不一致时，API自动居中裁剪：
+  - 图片"太高" → 以宽度为基准，上下裁剪
+  - 图片"太宽" → 以高度为基准，左右裁剪
+  - 建议: 参考图宽高比尽量接近目标ratio，避免关键内容被切

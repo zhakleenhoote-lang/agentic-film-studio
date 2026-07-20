@@ -81,7 +81,7 @@ required_dimensions: [d1_构图, d2_光位, d3_色调, d4_焦段, d5_视角, d6_
 recommended_dimensions: [d7_运镜描述]
 optional_dimensions: [d8_运镜参考视频]  # v4 新增，Phase 8 后逐步强约束
 
-## 与 Agent B/C 协作
-- Agent B 产出场景卡 → d7 文字必填 + d8 推荐填
-- Agent C 加载 → d8 优先 + 缺则降级 d7
-- Agent D 审核 → B15 检查 d8 与 d7 一致性 + 文件存在性
+"## 与 Agent B/C 协作":
+  - Agent B 产出场景卡 → d7 文字必填 + d8 推荐填
+  - Agent C 加载 → d8 优先 + 缺则降级 d7
+  - Agent D 审核 → B15 检查 d8 与 d7 一致性 + 文件存在性
